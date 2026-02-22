@@ -16,8 +16,14 @@ async function startServer() {
     await sequelize.authenticate();
     // console.log('Database connected');
 
-    await sequelize.sync();
-    // console.log('Database synced');
+    // Only auto-sync in dev/test, never in production
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      await sequelize.sync({ alter: true });
+      console.log('Database synced (dev/test)');
+    } else {
+      await sequelize.sync(); // or omit entirely if using migrations
+      // console.log('Database synced (production)');
+    }
 
     const PORT = process.env.PORT || 4000;
     app.listen(PORT, () => {

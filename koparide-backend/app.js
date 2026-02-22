@@ -25,7 +25,10 @@ if (process.env.NODE_ENV === 'production') {
     app.use(xss());
     app.use(hpp());
 }
-
+app.use(cors({
+    origin: "http://localhost:5173", // frontend URL
+    credentials: true // if you use cookies/auth headers
+    }));
 // Routes
 app.use('/auth', authRoutes);
 

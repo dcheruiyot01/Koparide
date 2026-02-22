@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -18,12 +19,14 @@
     "express": "^5.2.1",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.2.1",
+    "google-auth-library": "^10.5.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.1",
     "pg": "^8.18.0",
     "sequelize": "^6.37.7",
+    "vite": "^7.3.1",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

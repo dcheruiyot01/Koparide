@@ -4,7 +4,7 @@ npm-debug.log
 yarn-error.log
 
 # Env
-.env
+koparide-backend/.env
 .env.local
 .env.*.local
 
