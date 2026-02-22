@@ -149,6 +149,7 @@ module.exports = {
             if (existing) {
                 existing.googleId = googleId;
                 existing.authProvider = 'google';
+                existing.isVerified = true; // <-- REQUIRED
                 user = await existing.save();
             } else {
                 user = await User.create({

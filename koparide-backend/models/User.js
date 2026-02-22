@@ -31,9 +31,16 @@ const User = sequelize.define('User', {
 
   password: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,   // allow null for OAuth users
+    validate: {
+      // Only require password for local accounts
+      isPasswordRequired(value) {
+        if (this.authProvider === 'local' && !value) {
+          throw new Error('Password is required for local accounts');
+        }
+      }
+    }
   },
-
   passwordResetToken: {
     type: DataTypes.STRING,
     allowNull: true
