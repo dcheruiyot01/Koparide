@@ -14,7 +14,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const User = require('../models/User');
 const MailService = require('./mail.service');
 const generateResetToken = require('../utils/generateResetToken');
@@ -108,6 +109,67 @@ module.exports = {
         await user.save();
 
         // Create access token
+        const accessToken = signAccessToken(user.id);
+
+        return {
+            user: toSafeUser(user),
+            accessToken,
+            refreshToken
+        };
+    },
+
+    /* -------------------------------------------------------
+           GOOGLE OAuth LOGIN
+     -------------------------------------------------------- */
+    /**
+     * Google OAuth Login
+     *
+     * Flow:
+     *  - Verify Google ID token
+     *  - Find or create user
+     *  - Issue access + refresh tokens
+     */
+    async googleOAuth(idToken) {
+        // 1. Verify token with Google
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, name } = payload;
+
+        // 2. Find or create user
+        let user = await User.findOne({ where: { googleId } });
+
+        if (!user) {
+            // If user exists with same email, link accounts
+            const existing = await User.findOne({ where: { email } });
+
+            if (existing) {
+                existing.googleId = googleId;
+                existing.authProvider = 'google';
+                user = await existing.save();
+            } else {
+                user = await User.create({
+                    name,
+                    email,
+                    googleId,
+                    authProvider: 'google',
+                    isVerified: true // Google already verified email
+                });
+            }
+        }
+
+        // 3. Issue refresh token
+        const refreshToken = generateRefreshToken();
+        const hashedRefresh = await hashToken(refreshToken);
+
+        user.refreshToken = hashedRefresh;
+        user.refreshTokenExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await user.save();
+
+        // 4. Issue access token
         const accessToken = signAccessToken(user.id);
 
         return {

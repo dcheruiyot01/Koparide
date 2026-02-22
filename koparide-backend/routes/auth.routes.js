@@ -23,5 +23,6 @@ router.post('/reset-password/:token', authController.resetPassword);
 router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/resend-verification', authController.resendVerificationEmail);
 router.post('/logout', authController.logout);
+router.post('/oauth/google', authController.googleOAuth);
 
 module.exports = router;

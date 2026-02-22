@@ -62,6 +62,19 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  googleId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  githubId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  authProvider: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'local'
+  },
   role: {
     type: DataTypes.STRING,
     allowNull: false,

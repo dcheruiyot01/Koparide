@@ -55,6 +55,31 @@ module.exports = {
     }
   },
 
+  async googleOAuth(req, res, next) {
+    try {
+      const { credential } = req.body; // Google ID token from frontend
+
+      const { user, accessToken, refreshToken } =
+          await AuthService.googleOAuth(credential);
+
+      // Set refresh token cookie
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      });
+
+      return res.status(200).json({
+        message: 'Google login successful',
+        token: accessToken,
+        user
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   /**
    * Forgot password
    */
