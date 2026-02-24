@@ -93,8 +93,41 @@ export const DashboardLayout = ({ children }: Props) => {
                     </Avatar>
 
                     <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
+                        {/* Show user email, disabled */}
                         <MenuItem disabled>{user?.email}</MenuItem>
                         <Divider />
+
+                        {/* New dropdown options */}
+                        <MenuItem
+                            onClick={() => {
+                                closeMenu();
+                                // Navigate to profile page
+                            }}
+                        >
+                            Profile
+                        </MenuItem>
+
+                        <MenuItem
+                            onClick={() => {
+                                closeMenu();
+                                // Navigate to account page
+                            }}
+                        >
+                            Account
+                        </MenuItem>
+
+                        <MenuItem
+                            onClick={() => {
+                                closeMenu();
+                                // Navigate to host onboarding page
+                            }}
+                        >
+                            Become a host
+                        </MenuItem>
+
+                        <Divider />
+
+                        {/* Logout option */}
                         <MenuItem
                             onClick={() => {
                                 closeMenu();

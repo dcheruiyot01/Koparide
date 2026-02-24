@@ -12,11 +12,11 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 
 export const Login = () => {
     const { login } = useAuth();
-
+    const navigate = useNavigate(); // hook for navigation
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -29,6 +29,8 @@ export const Login = () => {
 
         try {
             await login(email, password);
+            // On success, redirect to dashboard
+            navigate("/");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Login failed");
         } finally {

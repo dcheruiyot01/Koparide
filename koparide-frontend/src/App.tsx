@@ -7,7 +7,7 @@ import { ResetPassword } from "./pages/auth/ResetPassword";
 import { VerifyEmailRequest } from "./pages/auth/VerifyEmailRequest";
 import { VerifyEmail } from "./pages/auth/VerifyEmail";
 import { Dashboard } from "./pages/auth/Dashboard";
-
+import { HomePage } from "./layout/HomePage";
 import { DashboardLayout } from "./layout/ DashboardLayout";
 import { useAuth } from "./auth/useAuth";
 
@@ -28,6 +28,7 @@ export const App = () => {
         <BrowserRouter>
             <Routes>
                 {/* Public routes */}
+                <Route path="/" element={<HomePage/>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -35,9 +36,18 @@ export const App = () => {
                 <Route path="/verify-email" element={<VerifyEmailRequest />} />
                 <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
+
+                {/*<Route*/}
+                {/*    path="/"*/}
+                {/*    element={*/}
+                {/*            <LandingLayout>*/}
+                {/*                <LandingPage />*/}
+                {/*            </LandingLayout>*/}
+                {/*    }*/}
+                {/*/>*/}
                 {/* Protected Dashboard */}
                 <Route
-                    path="/"
+                    path="/dashboard"
                     element={
                         <ProtectedRoute>
                             <DashboardLayout>
