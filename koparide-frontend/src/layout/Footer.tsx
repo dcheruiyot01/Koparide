@@ -38,8 +38,8 @@ export const Footer = () => {
                         <h3 className="text-lg font-bold mb-6">Explore</h3>
                         <ul className="space-y-4">
                             {["Search cars", "How it works", "Become a host", "Trust & Safety"].map((item) => (
-                                <li key={item}>
-                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                                <li key={item} className="list-none">
+                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm font-medium  no-underline hover:no-underline list-none">
                                         {item}
                                     </a>
                                 </li>
@@ -52,8 +52,8 @@ export const Footer = () => {
                         <h3 className="text-lg font-bold mb-6">Company</h3>
                         <ul className="space-y-4">
                             {["About us", "Careers", "Press", "Blog"].map((item) => (
-                                <li key={item}>
-                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                                <li key={item} className="list-none">
+                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm font-medium no-underline hover:no-underline ">
                                         {item}
                                     </a>
                                 </li>
@@ -66,8 +66,8 @@ export const Footer = () => {
                         <h3 className="text-lg font-bold mb-6">Support</h3>
                         <ul className="space-y-4">
                             {["Help center", "Terms of service", "Privacy policy", "Cookie policy"].map((item) => (
-                                <li key={item}>
-                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+                                <li key={item} className="list-none">
+                                    <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm font-medium  no-underline hover:no-underline list-none">
                                         {item}
                                     </a>
                                 </li>
@@ -83,7 +83,7 @@ export const Footer = () => {
                         © {new Date().getFullYear()} Koparide. All rights reserved.
                     </p>
 
-                    <div className="flex space-x-6">
+                    <div className="flex space-x-6 list-none">
                         {["Privacy", "Terms", "Sitemap"].map((item) => (
                             <a
                                 key={item}

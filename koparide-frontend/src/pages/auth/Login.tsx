@@ -12,11 +12,16 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import {Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-export const Login = () => {
+interface LoginProps {
+    onSuccess?: () => void; // optional callback for modal usage
+}
+
+export const Login = ({ onSuccess }: LoginProps) => {
     const { login } = useAuth();
-    const navigate = useNavigate(); // hook for navigation
+    const navigate = useNavigate();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [submitting, setSubmitting] = useState(false);
@@ -29,8 +34,12 @@ export const Login = () => {
 
         try {
             await login(email, password);
-            // On success, redirect to dashboard
-            navigate("/");
+
+            if (onSuccess) {
+                onSuccess(); // close modal
+            } else {
+                navigate("/"); // normal page redirect
+            }
         } catch (err: any) {
             setError(err?.response?.data?.message || "Login failed");
         } finally {
@@ -39,8 +48,8 @@ export const Login = () => {
     };
 
     return (
-        <Box display="flex" justifyContent="center" mt={10} px={2}>
-            <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
+        <Box>
+            <Paper elevation={0} sx={{ p: 0 }}>
                 <Typography variant="h5" fontWeight={600} mb={2}>
                     Login
                 </Typography>

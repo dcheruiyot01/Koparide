@@ -43,7 +43,7 @@ export const HeroSection = () => {
                                 <input
                                     type="text"
                                     placeholder="City, airport, or address"
-                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium placeholder-gray-400 focus:outline-none bg-transparent"
+                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium placeholder-gray-400 focus:outline-none bg-transparent border-0"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
                                 />
@@ -59,7 +59,7 @@ export const HeroSection = () => {
                                 <Calendar className="h-5 w-5 text-gray-400 absolute left-3" />
                                 <input
                                     type="date"
-                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent"
+                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
                                     value={pickupDate}
                                     onChange={(e) => setPickupDate(e.target.value)}
                                 />
@@ -75,7 +75,7 @@ export const HeroSection = () => {
                                 <Calendar className="h-5 w-5 text-gray-400 absolute left-3" />
                                 <input
                                     type="date"
-                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent"
+                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
                                     value={returnDate}
                                     onChange={(e) => setReturnDate(e.target.value)}
                                 />
@@ -90,7 +90,7 @@ export const HeroSection = () => {
                             <div className="flex items-center relative">
                                 <Car className="h-5 w-5 text-gray-400 absolute left-3" />
                                 <select
-                                    className="w-full pl-8 pr-8 py-1 text-gray-900 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer"
+                                    className="w-full pl-8 pr-8 py-1 text-gray-900 font-medium focus:outline-none bg-transparent appearance-none cursor-pointer border-0"
                                     value={carType}
                                     onChange={(e) => setCarType(e.target.value)}
                                 >
@@ -107,7 +107,7 @@ export const HeroSection = () => {
 
                         {/* Search Button */}
                         <div className="p-2">
-                            <button className="w-full md:w-auto bg-[#00A699] hover:bg-[#007A6E] text-white rounded-xl px-8 py-3 font-bold transition-colors flex items-center justify-center shadow-md">
+                            <button className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm no-underline hover:no-underline">
                                 <Search className="h-5 w-5 mr-2 md:hidden" />
                                 <span>Search</span>
                             </button>

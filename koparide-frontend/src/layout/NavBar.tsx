@@ -12,13 +12,16 @@ import {
     Calendar
 } from "lucide-react"
 import { useAuth } from "../auth/useAuth"
+import { RegisterModal } from "../pages/auth/RegisterModal"
+import { LoginModal } from "../pages/auth/LoginModal"
 
 export const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [isProfileOpen, setIsProfileOpen] = useState(false)
     const dropdownRef = useRef(null)
-
+    const [registerOpen, setRegisterOpen] = useState(false)
+    const [loginOpen, setLoginOpen] = useState(false)
     const { user, logout } = useAuth()
 
     // Handle scroll effect
@@ -100,7 +103,7 @@ export const Navbar = () => {
                                 isScrolled ? "text-gray-900" : "text-white"
                             }`}
                         >
-                            Koparide & Wheelaway
+                            Wheelaway {"{KopaRide}"}
                         </span>
                     </div>
 
@@ -109,10 +112,7 @@ export const Navbar = () => {
                         <a
                             href="#explore"
                             className={`px-3 py-1.5 rounded-full border text-sm font-medium transition no-underline hover:no-underline ${
-                                isScrolled
-                                    ? "border-blue-500 text-blue-600 hover:bg-blue-50"
-                                    : "border-white text-white hover:bg-white/10"
-                            }`}
+                                isScrolled ? "text-gray-700" : "text-white"}`}
                         >
                             Explore
                         </a>
@@ -216,11 +216,12 @@ export const Navbar = () => {
                                             </a>
                                             <button
                                                 onClick={handleLogout}
-                                                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 border-0 focus:outline-none focus:ring-0"
                                             >
                                                 <LogOut className="h-4 w-4 mr-3" />
                                                 Log out
                                             </button>
+
                                         </div>
                                     </div>
                                 )}
@@ -228,7 +229,7 @@ export const Navbar = () => {
                         ) : (
                             <>
                                 <a
-                                    href="/login"
+                                    onClick={() => setLoginOpen(true)}
                                     className={`px-3 py-1.5 rounded-full text-sm font-medium no-underline hover:no-underline hover:opacity-80 transition ${
                                         isScrolled ? "text-gray-700" : "text-white"
                                     }`}
@@ -237,7 +238,7 @@ export const Navbar = () => {
                                 </a>
 
                                 <a
-                                    href="/signup"
+                                    onClick={() => setRegisterOpen(true)}
                                     className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm no-underline hover:no-underline"
                                 >
                                     Sign up
@@ -339,7 +340,7 @@ export const Navbar = () => {
                         <>
                             <a
                                 href="#explore"
-                                className="px-3 py-2 rounded-full border border-blue-500 text-blue-600 font-medium text-center no-underline hover:no-underline"
+                                className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
                                 onClick={closeMobileMenu}
                             >
                                 Explore
@@ -382,6 +383,8 @@ export const Navbar = () => {
                     )}
                 </div>
             )}
+            <RegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)} />
+            <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
         </nav>
     )
 }

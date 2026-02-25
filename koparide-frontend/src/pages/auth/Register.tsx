@@ -12,11 +12,11 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom"; // import useNavigate
+import { Link, useNavigate } from "react-router-dom";
 
-export const Register = () => {
+export const Register = ({ onSuccess }: { onSuccess?: () => void }) => {
     const { register } = useAuth();
-    const navigate = useNavigate(); // hook for navigation
+    const navigate = useNavigate();
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -31,13 +31,14 @@ export const Register = () => {
         setError(null);
 
         try {
-            // Call backend register via useAuth
             await register(name, email, password);
 
-            // On success, redirect to dashboard
-            navigate("/");
+            if (onSuccess) {
+                onSuccess(); // close modal
+            } else {
+                navigate("/"); // normal page redirect
+            }
         } catch (err: any) {
-            // Show error message if registration fails
             setError(err?.response?.data?.message || "Registration failed");
         } finally {
             setSubmitting(false);
@@ -45,18 +46,16 @@ export const Register = () => {
     };
 
     return (
-        <Box display="flex" justifyContent="center" mt={10} px={2}>
-            <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
+        <Box>
+            <Paper elevation={0} sx={{ p: 0 }}>
                 <Typography variant="h5" fontWeight={600} mb={2}>
                     Create an Account
                 </Typography>
 
-                {/* ✅ Registration form */}
                 <form onSubmit={handleSubmit}>
                     <Stack spacing={2}>
                         <TextField
                             label="Full Name"
-                            type="text"
                             required
                             fullWidth
                             value={name}
@@ -81,7 +80,6 @@ export const Register = () => {
                             onChange={e => setPassword(e.target.value)}
                         />
 
-                        {/* ✅ Show error if registration fails */}
                         {error && <Alert severity="error">{error}</Alert>}
 
                         <Button
@@ -96,12 +94,10 @@ export const Register = () => {
                     </Stack>
                 </form>
 
-                {/* ✅ Optional Google login */}
                 <Box mt={3}>
                     <GoogleLoginButton />
                 </Box>
 
-                {/* ✅ Link back to login */}
                 <Box mt={3} textAlign="center">
                     <MuiLink component={Link} to="/login" underline="hover">
                         Already have an account? Login
