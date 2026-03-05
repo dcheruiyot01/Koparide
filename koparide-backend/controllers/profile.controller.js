@@ -1,9 +1,14 @@
 // controllers/profile.controller.js
+
 const Profile = require('../models/profile');
 
+/**
+ * Get the authenticated user's profile
+ */
 exports.getProfile = async (req, res) => {
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
+
         if (!profile) {
             return res.status(404).json({ error: 'Profile not found' });
         }
@@ -15,6 +20,10 @@ exports.getProfile = async (req, res) => {
     }
 };
 
+/**
+ * Update the authenticated user's profile
+ * NOTE: Only allow specific fields to be updated to prevent overwriting sensitive data
+ */
 exports.updateProfile = async (req, res) => {
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
@@ -23,6 +32,7 @@ exports.updateProfile = async (req, res) => {
             return res.status(404).json({ error: 'Profile not found' });
         }
 
+        // TODO:: Whitelist fields to update
         await profile.update(req.body);
 
         return res.json({
@@ -35,17 +45,22 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
+/**
+ * Upload and update profile image
+ */
 exports.uploadProfileImage = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
+            return res.status(400).json({ error: "No file uploaded" });
         }
-        const imageUrl = `http://localhost:4000/uploads/profiles/${req.file.filename}`;
+
+        // TODO:: Replace hardcoded localhost with environment variable (e.g., process.env.BASE_URL)
+        const imageUrl = process.env.BASE_URL+`/uploads/profiles/${req.file.filename}`;
 
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
 
         if (!profile) {
-            return res.status(404).json({ message: "Profile not found" });
+            return res.status(404).json({ error: "Profile not found" });
         }
 
         await profile.update({ profileImageUrl: imageUrl });
@@ -53,28 +68,32 @@ exports.uploadProfileImage = async (req, res) => {
         return res.json({ url: imageUrl });
     } catch (err) {
         console.error("Image upload error:", err);
-        return res.status(500).json({ message: "Failed to upload image" });
+        return res.status(500).json({ error: "Failed to upload image" });
     }
 };
 
+/**
+ * Upload and update driver's license image
+ */
 exports.uploadLicenseImage = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded" });
+            return res.status(400).json({ error: "No file uploaded" });
         }
-        const url = `http://localhost:4000/uploads/licenses/${req.file.filename}`;
 
-        await Profile.update(
-            { driversLicenseUrl: url },
-            { where: { userid: req.user.id } }
-        );
-        res.json({ url: url });
+        // TODO:: Replace hardcoded localhost with environment variable (e.g., process.env.BASE_URL)
+        const url = process.env.BASE_URL+`/uploads/licenses/${req.file.filename}`;
+
+        const profile = await Profile.findOne({ where: { userid: req.user.id } });
+        if (!profile) {
+            return res.status(404).json({ error: "Profile not found" });
+        }
+
+        await profile.update({ driversLicenseUrl: url });
+
+        return res.json({ url });
     } catch (err) {
-        onsole.error("Image upload error:", err);
-        return res.status(500).json({ message: "Failed to upload image" });
+        console.error("Image upload error:", err);
+        return res.status(500).json({ error: "Failed to upload image" });
     }
-
-
-
 };
-
