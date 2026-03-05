@@ -32,21 +32,23 @@ module.exports = {
    * - Issues access token (JSON)
    * - Issues refresh token (HTTP-only cookie)
    */
+  // controllers/auth.controller.js
   async login(req, res, next) {
     try {
-      const { accessToken, refreshToken, user } =
-          await AuthService.login(req.body);
+      // AuthService.login should validate credentials and return tokens + user
+      const { accessToken, refreshToken, user } = await AuthService.login(req.body);
 
-      // Send refresh token as secure HTTP-only cookie
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      // Set refresh token as secure, httpOnly cookie (browser can't access it directly)
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,                          // prevents JS access
+        secure: process.env.NODE_ENV === "production", // only HTTPS in prod
+        sameSite: "strict",                      // CSRF protection
+        maxAge: 30 * 24 * 60 * 60 * 1000         // 30 days
       });
 
+      // Return access token + user in response body
       return res.status(200).json({
-        message: 'Login successful',
+        message: "Login successful",
         token: accessToken,
         user
       });
@@ -150,7 +152,6 @@ module.exports = {
   async refresh(req, res, next) {
     try {
       const refreshToken = req.cookies.refreshToken;
-
       const newAccessToken = await AuthService.refresh(refreshToken);
 
       return res.status(200).json({

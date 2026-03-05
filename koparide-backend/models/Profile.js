@@ -1,7 +1,7 @@
 // models/profile.js
-import { DataTypes } from 'sequelize';
-import sequelize from '../config/database.js'; // adjust path to your DB config
-import User from './user.js'; // assuming you already have a User model
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
+const User = require('./user');
 
 const Profile = sequelize.define('Profile', {
     id: {
@@ -9,14 +9,14 @@ const Profile = sequelize.define('Profile', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    userId: {
+    userid: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
             model: User,
             key: 'id',
         },
-        unique: true, // one profile per user
+        unique: true,
     },
     firstName: {
         type: DataTypes.STRING(100),
@@ -30,10 +30,15 @@ const Profile = sequelize.define('Profile', {
         type: DataTypes.STRING(20),
         allowNull: false,
     },
+    nationalIdNumber: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: true,
+    },
     driversLicenseNumber: {
         type: DataTypes.STRING(50),
         allowNull: false,
-        unique: true, // optional: enforce uniqueness
+        unique: true,
     },
     gender: {
         type: DataTypes.ENUM('Male', 'Female', 'Other'),
@@ -47,7 +52,15 @@ const Profile = sequelize.define('Profile', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
+    driversLicenseUrl: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
     address: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
+    about: {
         type: DataTypes.TEXT,
         allowNull: true,
     },
@@ -85,7 +98,7 @@ const Profile = sequelize.define('Profile', {
 });
 
 // Associations
-User.hasOne(Profile, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Profile.belongsTo(User, { foreignKey: 'userId' });
+User.hasOne(Profile, { foreignKey: 'userid', onDelete: 'CASCADE' });
+Profile.belongsTo(User, { foreignKey: 'userid' });
 
-export default Profile;
+module.exports = Profile;

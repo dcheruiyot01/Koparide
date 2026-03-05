@@ -1,15 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import { Login } from "./pages/auth/Login";
-import { Register } from "./pages/auth/Register";
-import { ForgotPassword } from "./pages/auth/ForgotPassword";
-import { ResetPassword } from "./pages/auth/ResetPassword";
-import { VerifyEmailRequest } from "./pages/auth/VerifyEmailRequest";
-import { VerifyEmail } from "./pages/auth/VerifyEmail";
+import { Login } from "./pages/auth/user/Login.tsx";
+import { Register } from "./pages/auth/user/Register.tsx";
+import { ForgotPassword } from "./pages/auth/user/ForgotPassword.tsx";
+import { ResetPassword } from "./pages/auth/user/ResetPassword.tsx";
+import { VerifyEmailRequest } from "./pages/auth/user/VerifyEmailRequest.tsx";
+import { VerifyEmail } from "./pages/auth/user/VerifyEmail.tsx";
 import { Dashboard } from "./pages/auth/Dashboard";
 import { HomePage } from "./layout/HomePage";
 import { DashboardLayout } from "./layout/ DashboardLayout";
 import { useAuth } from "./auth/useAuth";
+import { ProfileHome } from "./layout/ProfileHome"
 
 /**
  * Protects routes that require authentication.
@@ -36,16 +37,14 @@ export const App = () => {
                 <Route path="/verify-email" element={<VerifyEmailRequest />} />
                 <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
+                {/*-- protected routes --*/}
+                <Route
+                    path="/profile"
+                    element={
+                    <ProtectedRoute>
+                        <ProfileHome />
+                    </ProtectedRoute> } />
 
-                {/*<Route*/}
-                {/*    path="/"*/}
-                {/*    element={*/}
-                {/*            <LandingLayout>*/}
-                {/*                <LandingPage />*/}
-                {/*            </LandingLayout>*/}
-                {/*    }*/}
-                {/*/>*/}
-                {/* Protected Dashboard */}
                 <Route
                     path="/dashboard"
                     element={

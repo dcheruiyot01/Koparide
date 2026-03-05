@@ -22,3 +22,6 @@ coverage/
 dist/
 build/
 .idea
+
+#files
+uploads

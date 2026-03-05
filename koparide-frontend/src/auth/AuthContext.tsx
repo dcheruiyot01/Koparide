@@ -7,7 +7,7 @@ import {
     useCallback
 } from "react";
 import api, { setAuthToken } from "../api/axios";
-import type {AuthResponse, User} from "../types/auth";
+import type { AuthResponse, User } from "../types/auth";
 
 interface AuthContextValue {
     user: User | null;
@@ -19,9 +19,7 @@ interface AuthContextValue {
     logout: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextValue | undefined>(
-    undefined
-);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 interface Props {
     children: ReactNode;
@@ -33,8 +31,8 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
     const [loading, setLoading] = useState(true);
 
     /**
-     * Hydrate auth state from localStorage on page reload.
-     * This keeps the user logged in across refreshes.
+     * On app startup, hydrate auth state from localStorage.
+     * This keeps the user logged in across page reloads.
      */
     useEffect(() => {
         const storedToken = localStorage.getItem("accessToken");
@@ -42,7 +40,7 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
 
         if (storedToken && storedUser) {
             setToken(storedToken);
-            setAuthToken(storedToken);
+            setAuthToken(storedToken); // attach to axios globally
             setUser(JSON.parse(storedUser));
         }
 
@@ -50,7 +48,8 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
     }, []);
 
     /**
-     * Saves auth state to React + localStorage.
+     * Persist auth state in React + localStorage.
+     * Called after login/register/oauth.
      */
     const persistAuth = (data: AuthResponse) => {
         setUser(data.user);
@@ -60,15 +59,12 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
         localStorage.setItem("accessToken", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
     };
+
     /**
-     * Register.
+     * Register new user.
      */
     const register = useCallback(async (name: string, email: string, password: string) => {
-        const res = await api.post<AuthResponse>("/auth/register", {
-            name,
-            email,
-            password
-        });
+        const res = await api.post<AuthResponse>("/auth/register", { name, email, password });
         persistAuth(res.data);
     }, []);
 
@@ -93,7 +89,7 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
      */
     const logout = useCallback(async () => {
         try {
-            await api.post("/auth/logout");
+            await api.post("/auth/logout"); // backend clears refresh cookie
         } catch {
             // Ignore network errors — logout should still clear local state
         } finally {

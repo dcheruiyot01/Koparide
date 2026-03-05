@@ -1,7 +1,7 @@
 // src/auth/pages/VerifyEmail.tsx
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import api from "../../api/axios";
+import api from "../../../api/axios.ts";
 import {
     Box,
     Paper,

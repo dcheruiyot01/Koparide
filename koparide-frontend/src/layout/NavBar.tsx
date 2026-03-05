@@ -12,8 +12,8 @@ import {
     Calendar
 } from "lucide-react"
 import { useAuth } from "../auth/useAuth"
-import { RegisterModal } from "../pages/auth/RegisterModal"
-import { LoginModal } from "../pages/auth/LoginModal"
+import { RegisterModal } from "../pages/auth/user/RegisterModal.tsx"
+import { LoginModal } from "../pages/auth/user/LoginModal.tsx"
 
 export const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false)
@@ -151,11 +151,20 @@ export const Navbar = () => {
                                     aria-expanded={isProfileOpen}
                                 >
                                     <Menu className="h-4 w-4 ml-1" />
-                                    <div className="bg-[#00A699] rounded-full h-8 w-8 flex items-center justify-center">
-                                        <span className="text-white text-xs font-bold">
-                                            {getUserInitials()}
-                                        </span>
+                                    <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#00A699]">
+                                        {user?.profileImageUrl ? (
+                                            <img
+                                                src={user.profileImageUrl}
+                                                alt="Profile"
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="text-white text-xs font-bold">
+                                                {getUserInitials()}
+                                            </span>
+                                        )}
                                     </div>
+
                                 </button>
 
                                 {/* Desktop Dropdown Menu */}
@@ -207,12 +216,12 @@ export const Navbar = () => {
 
                                         <div className="border-t border-gray-100 py-1">
                                             <a
-                                                href="#account"
+                                                href="/profile"
                                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
                                                 onClick={closeProfileDropdown}
                                             >
-                                                <Settings className="h-4 w-4 mr-3 text-gray-400" />
-                                                Account
+                                                <User className="h-4 w-4 mr-3 text-gray-400" />
+                                                Profile
                                             </a>
                                             <button
                                                 onClick={handleLogout}
@@ -273,11 +282,20 @@ export const Navbar = () => {
                         <>
                             {/* User Profile Header */}
                             <div className="flex items-center space-x-3 px-2 py-3 border-b border-gray-100 mb-2">
-                                <div className="bg-[#00A699] rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white text-sm font-bold">
-                                        {getUserInitials()}
-                                    </span>
+                                <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#00A699]">
+                                    {user?.profileImageUrl ? (
+                                        <img
+                                            src={user.profileImageUrl}
+                                            alt="Profile"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-white text-xs font-bold">
+                                            {getUserInitials()}
+                                        </span>
+                                    )}
                                 </div>
+
                                 <div>
                                     <p className="font-semibold text-gray-900">{user.name || 'User'}</p>
                                     <p className="text-xs text-gray-500">{user.email || ''}</p>
@@ -321,12 +339,12 @@ export const Navbar = () => {
                             <div className="border-t border-gray-100 my-2"></div>
 
                             <a
-                                href="#account"
+                                href="/profile"
                                 className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
                                 onClick={closeMobileMenu}
                             >
-                                <Settings className="h-5 w-5 mr-3 text-gray-400" />
-                                Account
+                                <User className="h-5 w-5 mr-3 text-gray-400" />
+                                Profile
                             </a>
                             <button
                                 onClick={handleLogout}

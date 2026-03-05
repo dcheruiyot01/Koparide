@@ -1,6 +1,6 @@
-// src/auth/pages/ForgotPassword.tsx
-import { FormEvent, useState } from "react";
-import api from "../../api/axios";
+// src/auth/pages/VerifyEmailRequest.tsx
+import { useState, FormEvent } from "react";
+import api from "../../../api/axios.ts";
 import {
     Box,
     Paper,
@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 
-export const ForgotPassword = () => {
+export const VerifyEmailRequest = () => {
     const [email, setEmail] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState<string | null>(null);
@@ -26,8 +26,8 @@ export const ForgotPassword = () => {
         setSuccess(null);
 
         try {
-            const res = await api.post("/auth/forgot-password", { email });
-            setSuccess(res.data.message || "Password reset link sent to your email.");
+            const res = await api.post("/auth/resend-verification", { email });
+            setSuccess(res.data.message || "Verification email sent.");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Something went wrong.");
         } finally {
@@ -39,11 +39,11 @@ export const ForgotPassword = () => {
         <Box display="flex" justifyContent="center" mt={10} px={2}>
             <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
                 <Typography variant="h5" fontWeight={600} mb={1}>
-                    Forgot Password
+                    Verify Your Email
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                    Enter your email and we’ll send you a password reset link.
+                    Enter your email and we’ll resend the verification link.
                 </Typography>
 
                 <form onSubmit={handleSubmit}>
@@ -67,7 +67,7 @@ export const ForgotPassword = () => {
                             disabled={submitting}
                             fullWidth
                         >
-                            {submitting ? "Sending..." : "Send Reset Link"}
+                            {submitting ? "Sending..." : "Send Verification Email"}
                         </Button>
                     </Stack>
                 </form>

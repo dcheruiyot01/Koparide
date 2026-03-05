@@ -1,7 +1,7 @@
 // src/auth/pages/Register.tsx
 import { useState, FormEvent } from "react";
-import { useAuth } from "../../auth/useAuth";
-import { GoogleLoginButton } from "../../components/GoogleLoginButton";
+import { useAuth } from "../../../auth/useAuth.ts";
+import { GoogleLoginButton } from "../../../components/GoogleLoginButton.tsx";
 import {
     Box,
     Paper,

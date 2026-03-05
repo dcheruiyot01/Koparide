@@ -1,7 +1,6 @@
-// src/auth/pages/ResetPassword.tsx
-import { useState, FormEvent } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import api from "../../api/axios";
+// src/auth/pages/ForgotPassword.tsx
+import { FormEvent, useState } from "react";
+import api from "../../../api/axios.ts";
 import {
     Box,
     Paper,
@@ -12,21 +11,13 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
+import { Link } from "react-router-dom";
 
-export const ResetPassword = () => {
-    const { token } = useParams();
-    const navigate = useNavigate();
-
-    const [password, setPassword] = useState("");
-    const [confirm, setConfirm] = useState("");
-
+export const ForgotPassword = () => {
+    const [email, setEmail] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-
-    if (!token) {
-        return <Typography>Invalid or missing reset token.</Typography>;
-    }
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -34,17 +25,9 @@ export const ResetPassword = () => {
         setError(null);
         setSuccess(null);
 
-        if (password !== confirm) {
-            setError("Passwords do not match.");
-            setSubmitting(false);
-            return;
-        }
-
         try {
-            const res = await api.post(`/auth/reset-password/${token}`, { password });
-            setSuccess(res.data.message || "Password reset successful.");
-
-            setTimeout(() => navigate("/login"), 2000);
+            const res = await api.post("/auth/forgot-password", { email });
+            setSuccess(res.data.message || "Password reset link sent to your email.");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Something went wrong.");
         } finally {
@@ -56,31 +39,22 @@ export const ResetPassword = () => {
         <Box display="flex" justifyContent="center" mt={10} px={2}>
             <Paper elevation={4} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
                 <Typography variant="h5" fontWeight={600} mb={1}>
-                    Reset Password
+                    Forgot Password
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary" mb={3}>
-                    Enter your new password below.
+                    Enter your email and we’ll send you a password reset link.
                 </Typography>
 
                 <form onSubmit={handleSubmit}>
                     <Stack spacing={2}>
                         <TextField
-                            label="New Password"
-                            type="password"
+                            label="Email Address"
+                            type="email"
                             required
                             fullWidth
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                        />
-
-                        <TextField
-                            label="Confirm Password"
-                            type="password"
-                            required
-                            fullWidth
-                            value={confirm}
-                            onChange={e => setConfirm(e.target.value)}
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
                         />
 
                         {error && <Alert severity="error">{error}</Alert>}
@@ -93,7 +67,7 @@ export const ResetPassword = () => {
                             disabled={submitting}
                             fullWidth
                         >
-                            {submitting ? "Resetting..." : "Reset Password"}
+                            {submitting ? "Sending..." : "Send Reset Link"}
                         </Button>
                     </Stack>
                 </form>

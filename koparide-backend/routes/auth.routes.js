@@ -24,5 +24,7 @@ router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/resend-verification', authController.resendVerificationEmail);
 router.post('/logout', authController.logout);
 router.post('/oauth/google', authController.googleOAuth);
+router.post('/users', authController.googleOAuth);
+router.post('/refresh', authController.refresh);
 
 module.exports = router;
