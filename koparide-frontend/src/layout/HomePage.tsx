@@ -11,8 +11,8 @@ export const HomePage = () => {
             <Navbar />
             <main>
                 <HeroSection />
-                <HowItWorks />
                 <FeaturedCars />
+                <HowItWorks />
                 <WhyKoparide />
             </main>
             <Footer />

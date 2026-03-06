@@ -6,11 +6,14 @@ import { ForgotPassword } from "./pages/auth/user/ForgotPassword.tsx";
 import { ResetPassword } from "./pages/auth/user/ResetPassword.tsx";
 import { VerifyEmailRequest } from "./pages/auth/user/VerifyEmailRequest.tsx";
 import { VerifyEmail } from "./pages/auth/user/VerifyEmail.tsx";
-import { Dashboard } from "./pages/auth/Dashboard";
 import { HomePage } from "./layout/HomePage";
-import { DashboardLayout } from "./layout/ DashboardLayout";
 import { useAuth } from "./auth/useAuth";
 import { ProfileHome } from "./layout/ProfileHome"
+import { HostPage } from "./pages/HostPage"
+import { CarPage } from "./pages/CarPage"
+import { CarListingsPage } from "./pages/CarListingsPage"
+import { MessagesNotificationsPage } from "./pages/MessagesPage"
+import {ReservationPage} from "./pages/ReservationsPage";
 
 /**
  * Protects routes that require authentication.
@@ -30,6 +33,7 @@ export const App = () => {
             <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<HomePage/>} />
+                <Route path="/listings" element={<CarListingsPage/>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -44,14 +48,33 @@ export const App = () => {
                     <ProtectedRoute>
                         <ProfileHome />
                     </ProtectedRoute> } />
-
                 <Route
-                    path="/dashboard"
+                    path="/messages"
+                    element={
+                    <ProtectedRoute>
+                        <MessagesNotificationsPage />
+                    </ProtectedRoute> } />
+                <Route
+                    path="/host"
                     element={
                         <ProtectedRoute>
-                            <DashboardLayout>
-                                <Dashboard />
-                            </DashboardLayout>
+                            <HostPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/cars/1"
+                    element={
+                        <ProtectedRoute>
+                            <CarPage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/cars/1/reservations"
+                    element={
+                        <ProtectedRoute>
+                            <ReservationPage />
                         </ProtectedRoute>
                     }
                 />

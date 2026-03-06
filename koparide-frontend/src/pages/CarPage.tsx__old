@@ -1,0 +1,334 @@
+// CarDetailsPage.tsx
+import React, { useState } from "react";
+import {
+    Star,
+    MapPin,
+    Pencil,
+    Trash2,
+    Car,
+    ShieldCheck,
+    Smartphone,
+    CreditCard,
+    Clock,
+} from "lucide-react";
+import {Navbar} from "../layout/NavBar";
+import {Footer} from "../layout/Footer";
+
+// === Mocked Data ===
+const car = {
+    name: "Toyota Sequoia",
+    trim: "2025 Platinum",
+    rating: 5.0,
+    trips: 59,
+    specs: {
+        seats: 7,
+        fuel: "Hybrid • 20 MPG",
+        transmission: "Automatic",
+    },
+    trip: {
+        startDate: "4/11/2026",
+        endDate: "4/14/2026",
+        startTimeOptions: ["10:00 AM", "11:00 AM", "Noon"],
+        endTimeOptions: ["10:00 AM", "11:00 AM", "Noon"],
+    },
+    images: [
+        "https://cdn.pixabay.com/photo/2017/01/06/19/15/car-1957037_960_720.png", // Red SUV
+        "https://cdn.pixabay.com/photo/2016/03/31/20/51/car-1299198_960_720.png", // White SUV
+        "https://cdn.pixabay.com/photo/2014/04/03/10/32/car-312679_960_720.png", // Blue SUV
+        "https://cdn.pixabay.com/photo/2013/07/12/14/47/car-148905_960_720.png", // Black SUV
+        "https://cdn.pixabay.com/photo/2012/04/13/20/24/car-33593_960_720.png", // Offroad SUV
+    ]
+    ,
+
+    pickupLocations: [
+        { name: "San Francisco International Airport", type: "Airport" },
+        { name: "Norman Y. Mineta San Jose International Airport", type: "Airport" },
+        { name: "Oakland International Airport", type: "Airport" },
+        {
+            name: "Sunnyvale Station",
+            type: "Train station",
+            address: "121 W Evelyn Ave, Sunnyvale, CA 94086",
+        },
+    ],
+    overview: {
+        deluxeClass:
+            "This exclusive car has additional safety checks for guests under 30.",
+        features: {
+            safety: ["Adaptive cruise control", "All-wheel drive", "Backup camera"],
+            connectivity: ["Android Auto", "Apple CarPlay", "AUX input"],
+        },
+        included: [
+            "Skip the rental counter — use the app for pickup and return instructions",
+            "Add additional drivers for free",
+            "30-minute return grace period",
+        ],
+        savings: "3+ day discount: $19",
+        cancellation:
+            "Free cancellation. Full refund within 24 hours of booking. More flexible options available at checkout.",
+        payment: "Flexible payment — $0 due now when you choose the Refundable option.",
+        distance: "Unlimited",
+    },
+};
+
+export const CarPage =()=>  {
+    const [current, setCurrent] = useState(0);
+    const [activeTab, setActiveTab] = useState("overview");
+
+    return (
+        <div className="max-w-5xl mx-auto p-6 space-y-10">
+            <Navbar />
+            {/* === Carousel === */}
+            <div className="space-y-4">
+                <div className="w-full h-72 md:h-96 rounded-lg overflow-hidden">
+                    <img
+                        src={car.images[current]}
+                        alt="Car"
+                        className="w-full h-full object-cover transition-all duration-500"
+                    />
+                </div>
+                <div className="flex gap-2 overflow-x-auto">
+                    {car.images.map((img, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setCurrent(index)}
+                            className={`flex-shrink-0 w-24 h-16 rounded overflow-hidden border-2 ${
+                                current === index ? "border-[#00a699]" : "border-transparent"
+                            }`}
+                        >
+                            <img
+                                src={img}
+                                alt={`Thumbnail ${index + 1}`}
+                                className="w-full h-full object-cover"
+                            />
+                        </button>
+                    ))}
+                </div>
+                <div className="text-right">
+                    <button className="px-4 py-2 text-sm font-semibold border rounded hover:bg-gray-100">
+                        View {car.images.length} photos
+                    </button>
+                </div>
+            </div>
+
+            {/* === Header === */}
+            <div>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                    <Car className="w-7 h-7 text-[#00a699]" />
+                    {car.name}
+                </h1>
+                <p className="text-gray-600">{car.trim}</p>
+                <div className="flex items-center space-x-2 mt-2">
+                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                    <p className="text-gray-700">
+                        {car.rating} ({car.trips} trips)
+                    </p>
+                </div>
+            </div>
+
+            {/* === Specs === */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <div className="flex items-center gap-2">
+                    <Car className="w-5 h-5 text-gray-500" />
+                    <div>
+                        <p className="font-semibold">Seats</p>
+                        <p className="text-gray-600">{car.specs.seats}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Car className="w-5 h-5 text-gray-500" />
+                    <div>
+                        <p className="font-semibold">Fuel</p>
+                        <p className="text-gray-600">{car.specs.fuel}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Car className="w-5 h-5 text-gray-500" />
+                    <div>
+                        <p className="font-semibold">Transmission</p>
+                        <p className="text-gray-600">{car.specs.transmission}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* === Trip Dates === */}
+            <div>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <Pencil className="w-5 h-5 text-[#00a699]" />
+                    Your trip
+                </h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block font-semibold">Trip start</label>
+                        <input
+                            type="text"
+                            value={car.trip.startDate}
+                            readOnly
+                            className="w-full border rounded px-3 py-2 mt-1"
+                        />
+                        <select className="w-full border rounded px-3 py-2 mt-2">
+                            {car.trip.startTimeOptions.map((time) => (
+                                <option key={time}>{time}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block font-semibold">Trip end</label>
+                        <input
+                            type="text"
+                            value={car.trip.endDate}
+                            readOnly
+                            className="w-full border rounded px-3 py-2 mt-1"
+                        />
+                        <select className="w-full border rounded px-3 py-2 mt-2">
+                            {car.trip.endTimeOptions.map((time) => (
+                                <option key={time}>{time}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {/* === Pickup & Return === */}
+            <div>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-[#00a699]" />
+                    Pickup & return location
+                </h2>
+                <p className="text-gray-700">Oakland, CA 94621</p>
+                <p className="text-sm text-gray-500 mt-1">
+                    We’ll send you the exact address once your trip is booked.
+                </p>
+                <div className="mt-4 space-y-3">
+                    {car.pickupLocations.map((loc) => (
+                        <div
+                            key={loc.name}
+                            className="border rounded p-3 flex items-start gap-2"
+                        >
+                            <MapPin className="w-5 h-5 text-gray-500 mt-1" />
+                            <div>
+                                <p className="font-semibold">{loc.name}</p>
+                                <p className="text-sm text-gray-500">{loc.type}</p>
+                                {loc.address && (
+                                    <p className="text-sm text-gray-400">{loc.address}</p>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* === Tabs Section === */}
+            <div>
+                {/* Tab buttons */}
+                <div className="flex gap-6 border-b">
+                    {["overview", "policies"].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`pb-2 font-semibold ${
+                                activeTab === tab
+                                    ? "border-b-2 border-[#00a699] text-[#00a699]"
+                                    : "text-gray-500"
+                            }`}
+                        >
+                            {tab === "overview" ? "Overview" : "Policies"}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab content */}
+                <div className="mt-6 space-y-6">
+                    {activeTab === "overview" && (
+                        <div className="space-y-6">
+                            {/* Deluxe class */}
+                            <div className="flex items-start gap-2">
+                                <ShieldCheck className="w-5 h-5 text-[#00a699]" />
+                                <div>
+                                    <h3 className="font-semibold">Deluxe class</h3>
+                                    <p className="text-gray-600">{car.overview.deluxeClass}</p>
+                                </div>
+                            </div>
+
+                            {/* Vehicle features */}
+                            <div>
+                                <h3 className="font-semibold mb-2">Vehicle features</h3>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-sm font-semibold">Safety</p>
+                                        <ul className="list-disc list-inside text-gray-600">
+                                            {car.overview.features.safety.map((f) => (
+                                                <li key={f}>{f}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold">Device connectivity</p>
+                                        <ul className="list-disc list-inside text-gray-600">
+                                            {car.overview.features.connectivity.map((f) => (
+                                                <li key={f}>{f}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <button className="mt-2 text-sm text-[#00a699] font-semibold hover:underline">
+                                    See all features
+                                </button>
+                            </div>
+
+                            {/* Included in the price */}
+                            <div>
+                                <h3 className="font-semibold mb-2">Included in the price</h3>
+                                <ul className="list-disc list-inside text-gray-600">
+                                    {car.overview.included.map((item) => (
+                                        <li key={item}>{item}</li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            {/* Trip savings */}
+                            <div className="flex items-start gap-2">
+                                <Clock className="w-5 h-5 text-[#00a699]" />
+                                <div>
+                                    <h3 className="font-semibold">Trip savings</h3>
+                                    <p className="text-gray-600">{car.overview.savings}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "policies" && (
+                        <div className="space-y-6">
+                            {/* Cancellation policy */}
+                            <div className="flex items-start gap-2">
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                                <div>
+                                    <h3 className="font-semibold">Cancellation policy</h3>
+                                    <p className="text-gray-600">{car.overview.cancellation}</p>
+                                </div>
+                            </div>
+
+                            {/* Payment options */}
+                            <div className="flex items-start gap-2">
+                                <CreditCard className="w-5 h-5 text-[#00a699]" />
+                                <div>
+                                    <h3 className="font-semibold">Payment options</h3>
+                                    <p className="text-gray-600">{car.overview.payment}</p>
+                                </div>
+                            </div>
+
+                            {/* Distance included */}
+                            <div className="flex items-start gap-2">
+                                <Smartphone className="w-5 h-5 text-[#00a699]" />
+                                <div>
+                                    <h3 className="font-semibold">Distance included</h3>
+                                    <p className="text-gray-600">{car.overview.distance}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <Footer />
+        </div>
+    );
+}

@@ -1,11 +1,143 @@
-import React, { useState } from "react"
-import { Search, MapPin, Calendar, Car, ChevronDown } from "lucide-react"
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, MapPin, Car, ChevronDown } from "lucide-react";
 
-export const HeroSection = () => {
-    const [location, setLocation] = useState<string>("")
-    const [pickupDate, setPickupDate] = useState<string>("")
-    const [returnDate, setReturnDate] = useState<string>("")
-    const [carType, setCarType] = useState<string>("Any type")
+/**
+ * HeroSection
+ *
+ * - Attempts to auto-fill the "location" input using the browser Geolocation API.
+ * - Reverse-geocodes coordinates via OpenStreetMap Nominatim (no API key required).
+ * - Provides a retry button and graceful fallback if permission is denied or lookup fails.
+ * - Builds a query string and navigates to /listings on Search.
+ *
+ * Notes:
+ * - Nominatim has usage policies; for production use a server-side proxy or a paid geocoding service.
+ * - You can replace the reverseGeocode function with your own endpoint if needed.
+ */
+
+export const HeroSection: React.FC = () => {
+    const navigate = useNavigate();
+
+    const [location, setLocation] = useState<string>("");
+    const [maxPrice, setMaxPrice] = useState<string>("");
+    const [year, setYear] = useState<string>("");
+    const [carType, setCarType] = useState<string>("Any type");
+
+    // Geolocation state
+    const [isLocating, setIsLocating] = useState<boolean>(false);
+    const [locationError, setLocationError] = useState<string | null>(null);
+
+    // Reverse geocode coordinates to a human-friendly place (city / town)
+    const reverseGeocode = async (lat: number, lon: number, signal?: AbortSignal) => {
+        try {
+            // Nominatim endpoint for reverse geocoding
+            const url = new URL("https://nominatim.openstreetmap.org/reverse");
+            url.searchParams.set("format", "json");
+            url.searchParams.set("lat", String(lat));
+            url.searchParams.set("lon", String(lon));
+            url.searchParams.set("zoom", "10"); // city / town level
+            url.searchParams.set("addressdetails", "1");
+
+            const res = await fetch(url.toString(), {
+                method: "GET",
+                headers: {
+                    "Accept-Language": "en",
+                    "User-Agent": "YourAppName/1.0 (your@email.example)", // Nominatim requires a valid UA in production
+                },
+                signal,
+            });
+
+            if (!res.ok) throw new Error(`Reverse geocode failed: ${res.status}`);
+
+            const data = await res.json();
+
+            // Prefer city, town, village, county, or state in that order
+            const addr = data?.address || {};
+            const place =
+                addr.city || addr.town || addr.village || addr.county || addr.state || addr.region || "";
+
+            return place;
+        } catch (err) {
+            // Rethrow so caller can handle
+            throw err;
+        }
+    };
+
+    // Try to get user's current position and reverse-geocode it
+    const detectLocation = async () => {
+        setLocationError(null);
+
+        if (!("geolocation" in navigator)) {
+            setLocationError("Geolocation not supported by your browser.");
+            return;
+        }
+
+        setIsLocating(true);
+
+        // Use a timeout for geolocation and fetch
+        const geoOptions: PositionOptions = { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 };
+
+        const abortController = new AbortController();
+        let geoWatchId: number | null = null;
+
+        try {
+            // Wrap getCurrentPosition in a Promise
+            const pos: GeolocationPosition = await new Promise((resolve, reject) => {
+                const success = (p: GeolocationPosition) => resolve(p);
+                const failure = (err: GeolocationPositionError) => reject(err);
+
+                navigator.geolocation.getCurrentPosition(success, failure, geoOptions);
+            });
+
+            const { latitude, longitude } = pos.coords;
+
+            // Reverse geocode (with fetch abort support)
+            const place = await reverseGeocode(latitude, longitude, abortController.signal);
+
+            if (place) {
+                setLocation(place);
+            } else {
+                setLocationError("Could not determine a nearby city.");
+            }
+        } catch (err: any) {
+            // Handle common geolocation errors
+            if (err && err.code === 1) {
+                setLocationError("Location permission denied.");
+            } else if (err && err.name === "AbortError") {
+                setLocationError("Location lookup timed out.");
+            } else {
+                setLocationError("Unable to determine location.");
+            }
+        } finally {
+            setIsLocating(false);
+            // cleanup
+            abortController.abort();
+            if (geoWatchId !== null) navigator.geolocation.clearWatch(geoWatchId);
+        }
+    };
+
+    // Attempt to auto-detect on first mount
+    useEffect(() => {
+        // Only attempt if location input is empty
+        if (!location) {
+            detectLocation().catch(() => {
+                /* errors handled inside detectLocation */
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Build query params and navigate to /listings
+    const onSearch = () => {
+        const params = new URLSearchParams();
+
+        if (location.trim()) params.set("location", location.trim());
+        if (maxPrice.trim()) params.set("price", maxPrice.trim());
+        if (year.trim()) params.set("year", year.trim());
+        if (carType && carType !== "Any type") params.set("type", carType);
+
+        navigate(`/listings?${params.toString()}`);
+    };
 
     return (
         <div className="relative min-h-[600px] w-full flex items-center justify-center">
@@ -48,36 +180,66 @@ export const HeroSection = () => {
                                     onChange={(e) => setLocation(e.target.value)}
                                 />
                             </div>
+
+                            {/* small helper row */}
+                            <div className="mt-2 flex items-center gap-3">
+                                {isLocating ? (
+                                    <span className="text-xs text-gray-500">Detecting location…</span>
+                                ) : locationError ? (
+                                    <>
+                                        <span className="text-xs text-red-600">{locationError}</span>
+                                        <button
+                                            onClick={() => detectLocation()}
+                                            className="text-xs text-[#00A699] ml-2 underline"
+                                            type="button"
+                                        >
+                                            Try again
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => detectLocation()}
+                                        className="text-xs text-[#00A699] underline"
+                                        type="button"
+                                    >
+                                        Use my location
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Pickup Date */}
+                        {/* Max Price */}
                         <div className="flex-1 p-2 md:border-r border-gray-100 relative">
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-8">
-                                From
+                                Max Price
                             </label>
                             <div className="flex items-center">
-                                <Calendar className="h-5 w-5 text-gray-400 absolute left-3" />
+                                <span className="absolute left-3 text-gray-400">Ksh</span>
                                 <input
-                                    type="date"
-                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
-                                    value={pickupDate}
-                                    onChange={(e) => setPickupDate(e.target.value)}
+                                    type="number"
+                                    min={0}
+                                    placeholder="e.g. 5000"
+                                    className="w-full pl-10 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
+                                    value={maxPrice}
+                                    onChange={(e) => setMaxPrice(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        {/* Return Date */}
+                        {/* Year */}
                         <div className="flex-1 p-2 md:border-r border-gray-100 relative">
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 ml-8">
-                                To
+                                Year
                             </label>
                             <div className="flex items-center">
-                                <Calendar className="h-5 w-5 text-gray-400 absolute left-3" />
                                 <input
-                                    type="date"
-                                    className="w-full pl-8 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
-                                    value={returnDate}
-                                    onChange={(e) => setReturnDate(e.target.value)}
+                                    type="number"
+                                    min={1900}
+                                    max={2100}
+                                    placeholder="Any"
+                                    className="w-full pl-4 pr-4 py-1 text-gray-900 font-medium focus:outline-none bg-transparent border-0"
+                                    value={year}
+                                    onChange={(e) => setYear(e.target.value)}
                                 />
                             </div>
                         </div>
@@ -107,8 +269,12 @@ export const HeroSection = () => {
 
                         {/* Search Button */}
                         <div className="p-2">
-                            <button className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm no-underline hover:no-underline">
-                                <Search className="h-5 w-5 mr-2 md:hidden" />
+                            <button
+                                onClick={onSearch}
+                                className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm flex items-center"
+                                aria-label="Search listings"
+                            >
+                                <Search className="h-5 w-5 mr-2" />
                                 <span>Search</span>
                             </button>
                         </div>
@@ -117,5 +283,5 @@ export const HeroSection = () => {
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};

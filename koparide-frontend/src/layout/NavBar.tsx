@@ -85,7 +85,7 @@ export const Navbar = () => {
     return (
         <nav
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-                isScrolled ? "bg-white shadow-md py-3" : "bg-transparent py-5"
+                isScrolled ? "bg-white shadow-md py-3" : "bg-[#00a699] py-5"
             }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -103,7 +103,9 @@ export const Navbar = () => {
                                 isScrolled ? "text-gray-900" : "text-white"
                             }`}
                         >
-                            Wheelaway {"{KopaRide}"}
+                            <a href="/" className="no-underline text-inherit"  >
+                                WheelAway {`{Kopa Ride}`}
+                            </a>
                         </span>
                     </div>
 
@@ -180,24 +182,24 @@ export const Navbar = () => {
                                         </div>
 
                                         <div className="py-1">
+                                            {/*<a*/}
+                                            {/*    href="#trips"*/}
+                                            {/*    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"*/}
+                                            {/*    onClick={closeProfileDropdown}*/}
+                                            {/*>*/}
+                                            {/*    <Calendar className="h-4 w-4 mr-3 text-gray-400" />*/}
+                                            {/*    Trips*/}
+                                            {/*</a>*/}
+                                            {/*<a*/}
+                                            {/*    href="#favorites"*/}
+                                            {/*    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"*/}
+                                            {/*    onClick={closeProfileDropdown}*/}
+                                            {/*>*/}
+                                            {/*    <Heart className="h-4 w-4 mr-3 text-gray-400" />*/}
+                                            {/*    Favorites*/}
+                                            {/*</a>*/}
                                             <a
-                                                href="#trips"
-                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
-                                                onClick={closeProfileDropdown}
-                                            >
-                                                <Calendar className="h-4 w-4 mr-3 text-gray-400" />
-                                                Trips
-                                            </a>
-                                            <a
-                                                href="#favorites"
-                                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
-                                                onClick={closeProfileDropdown}
-                                            >
-                                                <Heart className="h-4 w-4 mr-3 text-gray-400" />
-                                                Favorites
-                                            </a>
-                                            <a
-                                                href="#messages"
+                                                href="/messages"
                                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
                                                 onClick={closeProfileDropdown}
                                             >
@@ -205,7 +207,7 @@ export const Navbar = () => {
                                                 Messages
                                             </a>
                                             <a
-                                                href="#host-mode"
+                                                href="/host"
                                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
                                                 onClick={closeProfileDropdown}
                                             >
@@ -303,24 +305,24 @@ export const Navbar = () => {
                             </div>
 
                             {/* Mobile Menu Links with Icons */}
+                            {/*<a*/}
+                            {/*    href="#trips"*/}
+                            {/*    className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"*/}
+                            {/*    onClick={closeMobileMenu}*/}
+                            {/*>*/}
+                            {/*    <Calendar className="h-5 w-5 mr-3 text-gray-400" />*/}
+                            {/*    Trips*/}
+                            {/*</a>*/}
+                            {/*<a*/}
+                            {/*    href="#favorites"*/}
+                            {/*    className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"*/}
+                            {/*    onClick={closeMobileMenu}*/}
+                            {/*>*/}
+                            {/*    <Heart className="h-5 w-5 mr-3 text-gray-400" />*/}
+                            {/*    Favorites*/}
+                            {/*</a>*/}
                             <a
-                                href="#trips"
-                                className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
-                                onClick={closeMobileMenu}
-                            >
-                                <Calendar className="h-5 w-5 mr-3 text-gray-400" />
-                                Trips
-                            </a>
-                            <a
-                                href="#favorites"
-                                className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
-                                onClick={closeMobileMenu}
-                            >
-                                <Heart className="h-5 w-5 mr-3 text-gray-400" />
-                                Favorites
-                            </a>
-                            <a
-                                href="#messages"
+                                href="/messages"
                                 className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
                                 onClick={closeMobileMenu}
                             >
@@ -328,7 +330,7 @@ export const Navbar = () => {
                                 Messages
                             </a>
                             <a
-                                href="#host-mode"
+                                href="/host"
                                 className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
                                 onClick={closeMobileMenu}
                             >

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { User, Car } from "lucide-react";
 import api from "../../api/axios";
+import {Navbar} from "../../layout/NavBar.tsx";
+import {Footer} from "../../layout/Footer.tsx";
 
 // --------------------
 // Types
@@ -256,35 +258,35 @@ export const ProfilePage = () => {
     // --------------------
     return (
         <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            {/*/!* -------------------- NAVBAR -------------------- *!/*/}
+            {/*<header className="fixed top-0 left-0 right-0 z-50 border-b bg-white shadow">*/}
+            {/*    <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">*/}
+            {/*        <div className="flex items-center cursor-pointer">*/}
+            {/*            <Car className={`h-8 w-8 ${isScrolled ? "text-[#00A699]" : "text-black"}`} />*/}
+            {/*            <span className="ml-2 text-xl font-bold text-gray-900">*/}
+            {/*  <a href="/" className="hover:text-indigo-600">*/}
+            {/*    WheelAway {`{Kopa Ride}`}*/}
+            {/*  </a>*/}
+            {/*</span>*/}
+            {/*        </div>*/}
 
-            {/* -------------------- NAVBAR -------------------- */}
-            <header className="fixed top-0 left-0 right-0 z-50 border-b bg-white shadow">
-                <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-                    <div className="flex items-center cursor-pointer">
-                        <Car className={`h-8 w-8 ${isScrolled ? "text-[#00A699]" : "text-black"}`} />
-                        <span className="ml-2 text-xl font-bold text-gray-900">
-              <a href="/" className="hover:text-indigo-600">
-                WheelAway {`{Kopa Ride}`}
-              </a>
-            </span>
-                    </div>
-
-                    {/* Missing search + actions section */}
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            placeholder="City, airport, address or hotel"
-                            className="border rounded-md px-3 py-2 text-sm w-72"
-                        />
-                        <button className="text-sm font-medium text-gray-700 hover:text-gray-900">
-                            Become a host
-                        </button>
-                        <button className="text-sm font-medium text-gray-700 hover:text-gray-900">
-                            Ask WheelAway
-                        </button>
-                    </div>
-                </div>
-            </header>
+            {/*        /!* Missing search + actions section *!/*/}
+            {/*        <div className="flex gap-4">*/}
+            {/*            <input*/}
+            {/*                type="text"*/}
+            {/*                placeholder="City, airport, address or hotel"*/}
+            {/*                className="border rounded-md px-3 py-2 text-sm w-72"*/}
+            {/*            />*/}
+            {/*            <button className="text-sm font-medium text-gray-700 hover:text-gray-900">*/}
+            {/*                Become a host*/}
+            {/*            </button>*/}
+            {/*            <button className="text-sm font-medium text-gray-700 hover:text-gray-900">*/}
+            {/*                Ask WheelAway*/}
+            {/*            </button>*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*</header>*/}
 
             {/* -------------------- MAIN CONTENT -------------------- */}
             <main className="max-w-3xl mx-auto px-6 pt-24 pb-10">
@@ -552,6 +554,7 @@ export const ProfilePage = () => {
                     </div>
                 )}
             </main>
+            <Footer />
         </div>
     );
 };

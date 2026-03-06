@@ -34,3 +34,23 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Input field */
+gmp-place-autocomplete::part(input) {
+  @apply bg-white text-black border border-gray-300 rounded px-2 py-1 text-sm;
+}
+
+/* Dropdown container */
+gmp-place-autocomplete::part(container) {
+  @apply bg-white border border-gray-200 rounded shadow;
+}
+
+/* Each suggestion item */
+gmp-place-autocomplete::part(item) {
+  @apply bg-white text-black px-2 py-1 cursor-pointer;
+}
+
+/* Hover effect for suggestions */
+gmp-place-autocomplete::part(item):hover {
+  @apply bg-purple-100 text-black;
+}
