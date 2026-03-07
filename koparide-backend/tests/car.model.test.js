@@ -14,7 +14,8 @@ describe('Car Model', () => {
 
     beforeAll(async () => {
         // Use in-memory SQLite for testing
-        sequelize = new Sequelize('sqlite::memory:', { logging: false });
+        sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false })
+       //  sequelize = new Sequelize('sqlite::memory:', { logging: false });
 
         // Reinitialize models with test sequelize instance
         User.init(User.rawAttributes, { sequelize, modelName: 'User' });

@@ -10,9 +10,9 @@ const { v4: uuidv4 } = require('uuid');
 
 const User = sequelize.define('User', {
   id: {
-    type: DataTypes.STRING, // Works in SQLite + Postgres
+    type: DataTypes.INTEGER,
     primaryKey: true,
-    defaultValue: () => uuidv4(), // Works everywhere
+    autoIncrement: true,
   },
 
   name: {
@@ -91,5 +91,10 @@ const User = sequelize.define('User', {
     },
   },
 });
+
+User.associate = models => {
+  User.hasMany(models.Car, { foreignKey: 'ownerId', as: 'cars' });
+  User.hasOne(models.Profile, { foreignKey: 'userid', onDelete: 'CASCADE' });
+};
 
 module.exports = User;

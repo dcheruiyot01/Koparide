@@ -18,6 +18,7 @@ const app = express();
 
 const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
+const carRoutes = require('./routes/car.routes');
 const errorHandler = require('./middleware/error.middleware');
 
 // Body parser
@@ -37,9 +38,7 @@ app.use(cookieParser()); // <-- this populates req.cookies
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
-app.get('/', function (req, res) {
-    res.json('NINJA');
-});
+app.use('/api/cars', carRoutes);
 // Serve uploaded images
 app.use("/uploads/licenses", express.static(path.join(__dirname, "uploads/licenses")));
 app.use("/uploads/profiles", express.static(path.join(__dirname, "uploads/profiles")));

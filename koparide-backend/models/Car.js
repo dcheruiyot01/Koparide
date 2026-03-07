@@ -1,13 +1,5 @@
-/**
- * Car Model
- * -------------------------
- * Represents a car listed by a host.
- * Includes details, pricing, images, insurance, classification, and approval status.
- */
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-const User = require('./User'); // <-- Import User model
 
 const Car = sequelize.define('Car', {
     id: {
@@ -16,90 +8,57 @@ const Car = sequelize.define('Car', {
         primaryKey: true
     },
 
-    // Foreign key to User
     ownerId: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        references: {
-            model: User,
-            key: 'id'
-        },
+        references: { model: 'Users', key: 'id' },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE'
     },
 
-    make: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-
-    model: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
-
+    make: { type: DataTypes.STRING, allowNull: false },
+    model: { type: DataTypes.STRING, allowNull: false },
     year: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        validate: {
-            min: 1900,
-            max: new Date().getFullYear()
-        }
+        validate: { min: 1900, max: new Date().getFullYear() }
     },
 
-    mileage: {
-        type: DataTypes.INTEGER,
-        allowNull: true
-    },
-
-    pricePerDay: {
-        type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
-    },
+    pricePerDay: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
 
     classification: {
-        type: DataTypes.STRING, // use STRING for cross‑DB compatibility
+        type: DataTypes.STRING,
         allowNull: false,
         defaultValue: 'Saloon',
         validate: {
-            isIn: [['SUV', 'Saloon', 'Pickup', 'Hatchback', 'Van', 'Coupe', 'Convertible']]
+            isIn: [['SUV', 'Sedan', 'Saloon', 'Pickup', 'Truck', 'Hatchback', 'Van', 'Coupe', 'Convertible']]
         }
     },
-    terms: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
 
-    insuranceUrl: {
-        type: DataTypes.STRING,
-        allowNull: true
-        // TODO:: store in cloud storage (S3, GCP, Azure) in production
-    },
-
-    images: {
-        type: DataTypes.JSON, // store array of image URLs
-        allowNull: true
-    },
+    // ✅ New feature fields
+    seats: { type: DataTypes.INTEGER, allowNull: false },
+    fuelType: { type: DataTypes.STRING, allowNull: false },
+    mpg: { type: DataTypes.DECIMAL(5, 2), allowNull: true }, // fuel efficiency
+    transmission: { type: DataTypes.STRING, allowNull: true },
+    cruiseControl: { type: DataTypes.BOOLEAN, defaultValue: false },
+    cc: { type: DataTypes.INTEGER, allowNull: true }, // engine capacity
 
     status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-        defaultValue: 'pending'
-    },
-    // Soft delete flag
-    is_deleted: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'pending',
+        validate: {
+            isIn: [['pending', 'approved', 'rejected']]
+        }
     },
 
-    // Renter association
+    is_deleted: { type: DataTypes.BOOLEAN, defaultValue: false },
+
     rented_to: {
         type: DataTypes.INTEGER,
         allowNull: true,
-        references: {
-            model: User,
-            key: 'id'
-        },
-        onDelete: 'SET NULL', // if renter is deleted, clear field
+        references: { model: 'Users', key: 'id' },
+        onDelete: 'SET NULL',
         onUpdate: 'CASCADE'
     }
 }, {
@@ -107,11 +66,11 @@ const Car = sequelize.define('Car', {
     timestamps: true
 });
 
-// Associations
-Car.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
-User.hasMany(Car, { foreignKey: 'ownerId', as: 'cars' });
-
-// Renter association
-Car.belongsTo(User, { foreignKey: 'rented_to', as: 'renter' });
+Car.associate = models => {
+    Car.belongsTo(models.User, { foreignKey: 'ownerId', as: 'owner' });
+    Car.belongsTo(models.User, { foreignKey: 'rented_to', as: 'renter' });
+    Car.hasMany(models.CarImage, { foreignKey: 'carId', as: 'imagesList' });
+    Car.hasMany(models.Reservation, { foreignKey: 'carId', as: 'reservations' });
+};
 
 module.exports = Car;

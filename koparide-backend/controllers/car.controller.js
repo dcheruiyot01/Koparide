@@ -3,41 +3,39 @@
  * -------------------------
  * Handles HTTP requests for car listings.
  * Delegates business logic to CarService.
- * Sends notifications to owners and renters.
+ * Maps service errors to HTTP responses.
  */
 
 const CarService = require('../services/car.service');
-const MailService = require('../services/mail.service'); // mail service
+const MailService = require('../services/mail.service'); // notification emails
 
 module.exports = {
     /**
      * Create a new car listing
-     * - Notify owner that car is pending approval (24 hours)
+     * - Owner must be authenticated (req.user)
+     * - Sends notification email to owner
      */
     async createCarListing(req, res, next) {
         try {
-            const result = await CarService.createCarListing({
+            const car = await CarService.createCarListing({
                 ownerId: req.user.id,
                 ...req.body
             });
 
-            // Send notification email to owner
             await MailService.sendEmail(
                 req.user.email,
                 'Car Listing Pending Approval',
                 `Dear ${req.user.name},
 
-Your car "${result.make} ${result.model}" has been submitted successfully.
-It is now pending approval by our admin team. Approval usually takes up to 24 hours.
+Your car "${car.make} ${car.model}" has been submitted successfully.
+It is now pending approval by our admin team (up to 24 hours).
 
-Thank you for listing with us!
-
--- TODO: Replace this plain text with a proper email template.`
+Thank you for listing with us!`
             );
 
-            return res.status(201).json({
-                message: 'Car listing submitted successfully. Pending approval (24 hours).',
-                car: result
+            res.status(201).json({
+                message: 'Car listing submitted successfully. Pending approval.',
+                car
             });
         } catch (err) {
             next(err);
@@ -45,18 +43,18 @@ Thank you for listing with us!
     },
 
     /**
-     * Upload car images
+     * Upload car images (multer provides req.files)
      */
     async uploadCarImages(req, res, next) {
         try {
             const { id } = req.params;
-            const images = req.files.map(file => file.path); // multer provides req.files
+            const images = req.files.map(file => file.path);
 
-            const result = await CarService.uploadCarImages(id, images);
+            const car = await CarService.uploadCarImages(id, images);
 
-            return res.status(200).json({
+            res.status(200).json({
                 message: 'Car images uploaded successfully',
-                car: result
+                car
             });
         } catch (err) {
             next(err);
@@ -64,18 +62,18 @@ Thank you for listing with us!
     },
 
     /**
-     * Upload insurance document
+     * Upload insurance document (multer single file)
      */
     async uploadInsurance(req, res, next) {
         try {
             const { id } = req.params;
-            const insuranceUrl = req.file.path; // multer single file
+            const insuranceUrl = req.file.path;
 
-            const result = await CarService.uploadInsurance(id, insuranceUrl);
+            const car = await CarService.uploadInsurance(id, insuranceUrl);
 
-            return res.status(200).json({
+            res.status(200).json({
                 message: 'Insurance uploaded successfully',
-                car: result
+                car
             });
         } catch (err) {
             next(err);
@@ -87,13 +85,8 @@ Thank you for listing with us!
      */
     async approveCar(req, res, next) {
         try {
-            const { id } = req.params;
-            const result = await CarService.approveCar(id);
-
-            return res.status(200).json({
-                message: 'Car approved successfully',
-                car: result
-            });
+            const car = await CarService.approveCar(req.params.id);
+            res.status(200).json({ message: 'Car approved successfully', car });
         } catch (err) {
             next(err);
         }
@@ -104,13 +97,8 @@ Thank you for listing with us!
      */
     async rejectCar(req, res, next) {
         try {
-            const { id } = req.params;
-            const result = await CarService.rejectCar(id);
-
-            return res.status(200).json({
-                message: 'Car rejected successfully',
-                car: result
-            });
+            const car = await CarService.rejectCar(req.params.id);
+            res.status(200).json({ message: 'Car rejected successfully', car });
         } catch (err) {
             next(err);
         }
@@ -118,12 +106,31 @@ Thank you for listing with us!
 
     /**
      * Get all public cars (approved + not deleted)
+     * Supports pagination and filters via query params
      */
     async getPublicCars(req, res, next) {
         try {
-            const cars = await CarService.getPublicCars();
+            const cars = await CarService.getPublicCars(req.query);
+            res.status(200).json(cars);
+        } catch (err) {
+            next(err);
+        }
+    },
+    /**
+     * Get car details by ID
+     * -------------------------
+     * Returns a single car with its images, owner, and renter info.
+     */
+    async getCarById(req, res, next) {
+        try {
+            const { id } = req.params;
+            const car = await CarService.getCarById(id);
 
-            return res.status(200).json(cars);
+            if (!car) {
+                return res.status(404).json({ error: 'Car not found' });
+            }
+
+            res.status(200).json(car);
         } catch (err) {
             next(err);
         }
@@ -134,13 +141,8 @@ Thank you for listing with us!
      */
     async deleteCar(req, res, next) {
         try {
-            const { id } = req.params;
-            const result = await CarService.deleteCar(id);
-
-            return res.status(200).json({
-                message: 'Car deleted successfully',
-                car: result
-            });
+            const car = await CarService.deleteCar(req.params.id);
+            res.status(200).json({ message: 'Car deleted successfully', car });
         } catch (err) {
             next(err);
         }
@@ -148,37 +150,28 @@ Thank you for listing with us!
 
     /**
      * Rent car (assign renter user ID)
-     */
-    /**
-     * Rent car (assign renter user ID)
-     * - Notify renter with car details
+     * - Sends notification email to renter
      */
     async rentCar(req, res, next) {
         try {
             const { id } = req.params;
             const renterId = req.user.id;
 
-            const result = await CarService.rentCar(id, renterId);
+            const car = await CarService.rentCar(id, renterId);
 
-            // Send notification email to renter
             await MailService.sendEmail(
                 req.user.email,
                 'Car Rental Confirmation',
                 `Dear ${req.user.name},
 
-You have successfully rented the car "${result.make} ${result.model}".
-Price per day: ${result.pricePerDay}
-Owner: ${result.ownerId}
+You have successfully rented the car "${car.make} ${car.model}".
+Price per day: ${car.pricePerDay}
+Owner ID: ${car.ownerId}
 
-Enjoy your ride!
-
--- TODO: Replace this plain text with a proper email template.`
+Enjoy your ride!`
             );
 
-            return res.status(200).json({
-                message: 'Car rented successfully',
-                car: result
-            });
+            res.status(200).json({ message: 'Car rented successfully', car });
         } catch (err) {
             next(err);
         }
@@ -189,13 +182,8 @@ Enjoy your ride!
      */
     async returnCar(req, res, next) {
         try {
-            const { id } = req.params;
-            const result = await CarService.returnCar(id);
-
-            return res.status(200).json({
-                message: 'Car returned successfully',
-                car: result
-            });
+            const car = await CarService.returnCar(req.params.id);
+            res.status(200).json({ message: 'Car returned successfully', car });
         } catch (err) {
             next(err);
         }
