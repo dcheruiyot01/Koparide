@@ -1,334 +1,373 @@
-// CarDetailsPage.tsx
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
-    Star,
-    MapPin,
-    Pencil,
-    Trash2,
-    Car,
-    ShieldCheck,
-    Smartphone,
-    CreditCard,
-    Clock,
+    ChevronLeft,
+    ChevronRight,
+    Users,
+    Gauge,
+    Fuel,
+    Car as CarIcon,
+    Settings,
+    Droplet,
 } from "lucide-react";
-import {Navbar} from "../layout/NavBar";
-import {Footer} from "../layout/Footer";
+import { useParams } from "react-router-dom";
+import { Navbar } from "../layout/NavBar";
+import { Footer } from "../layout/Footer";
+import { LocationSearch } from "../components/locations/LocationsSearch";
+import api from "../api/axios"; // axios instance
 
-// === Mocked Data ===
-const car = {
-    name: "Toyota Sequoia",
-    trim: "2025 Platinum",
-    rating: 5.0,
-    trips: 59,
-    specs: {
-        seats: 7,
-        fuel: "Hybrid • 20 MPG",
-        transmission: "Automatic",
-    },
-    trip: {
-        startDate: "4/11/2026",
-        endDate: "4/14/2026",
-        startTimeOptions: ["10:00 AM", "11:00 AM", "Noon"],
-        endTimeOptions: ["10:00 AM", "11:00 AM", "Noon"],
-    },
-    images: [
-        "https://cdn.pixabay.com/photo/2017/01/06/19/15/car-1957037_960_720.png", // Red SUV
-        "https://cdn.pixabay.com/photo/2016/03/31/20/51/car-1299198_960_720.png", // White SUV
-        "https://cdn.pixabay.com/photo/2014/04/03/10/32/car-312679_960_720.png", // Blue SUV
-        "https://cdn.pixabay.com/photo/2013/07/12/14/47/car-148905_960_720.png", // Black SUV
-        "https://cdn.pixabay.com/photo/2012/04/13/20/24/car-33593_960_720.png", // Offroad SUV
-    ]
-    ,
+// … your other imports …
 
-    pickupLocations: [
-        { name: "San Francisco International Airport", type: "Airport" },
-        { name: "Norman Y. Mineta San Jose International Airport", type: "Airport" },
-        { name: "Oakland International Airport", type: "Airport" },
-        {
-            name: "Sunnyvale Station",
-            type: "Train station",
-            address: "121 W Evelyn Ave, Sunnyvale, CA 94086",
-        },
-    ],
-    overview: {
-        deluxeClass:
-            "This exclusive car has additional safety checks for guests under 30.",
-        features: {
-            safety: ["Adaptive cruise control", "All-wheel drive", "Backup camera"],
-            connectivity: ["Android Auto", "Apple CarPlay", "AUX input"],
-        },
-        included: [
-            "Skip the rental counter — use the app for pickup and return instructions",
-            "Add additional drivers for free",
-            "30-minute return grace period",
-        ],
-        savings: "3+ day discount: $19",
-        cancellation:
-            "Free cancellation. Full refund within 24 hours of booking. More flexible options available at checkout.",
-        payment: "Flexible payment — $0 due now when you choose the Refundable option.",
-        distance: "Unlimited",
-    },
+const TAX_RATE = 0.08;
+const PROTECTION_RATES = {
+    none: 0,
+    standard: 1200,
+    enhanced: 2000,
 };
 
-export const CarPage =()=>  {
+const formattedTodayLocal = (() => {
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+})();
+
+export const CarPage: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+
+    // car state
+    const [car, setCar] = useState<any | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+
+    // gallery state
     const [current, setCurrent] = useState(0);
-    const [activeTab, setActiveTab] = useState("overview");
+    const [showModal, setShowModal] = useState(false);
 
-    return (
-        <div className="max-w-5xl mx-auto p-6 space-y-10">
+    // booking state
+    const [startDateTime, setStartDateTime] = useState<string>("");
+    const [endDateTime, setEndDateTime] = useState<string>("");
+    const [protection, setProtection] = useState<"none" | "standard" | "enhanced">("standard");
+    const [promoCode, setPromoCode] = useState<string>("");
+
+    // Fetch car details
+    useEffect(() => {
+        if (!id) return;
+        const controller = new AbortController();
+
+        const fetchCar = async () => {
+            try {
+                setLoading(true);
+                setFetchError(null);
+
+                const res = await api.get(`/api/cars/${id}`, { signal: controller.signal });
+                const raw = res.data?.data ?? res.data ?? null;
+
+                if (!raw) {
+                    setFetchError("Car not found");
+                    setCar(null);
+                    return;
+                }
+
+                // Normalize shape
+                const normalized = {
+                    id: raw.id,
+                    title: raw.title ?? `${raw.make ?? ""} ${raw.model ?? ""}`.trim(),
+                    price: Number(raw.price ?? raw.pricePerDay ?? 0),
+                    images: Array.isArray(raw.images)
+                        ? raw.images
+                        : (raw.imagesList ?? []).map((i: any) => i.url ?? i),
+                    host: raw.host ?? raw.owner ?? null,
+                    features: raw.features ?? {},
+                    rating: raw.rating ?? 0,
+                    trips: raw.trips ?? 0,
+                };
+
+                setCar(normalized);
+            } catch (err: any) {
+                if (err.name === "CanceledError" || err.name === "AbortError") return;
+                setFetchError("Failed to load car details");
+                console.error("fetchCar error", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCar();
+        return () => controller.abort();
+    }, [id]);
+
+    // gallery navigation
+    const prevSlide = () =>
+        setCurrent((prev) => (car && car.images ? (prev === 0 ? car.images.length - 1 : prev - 1) : 0));
+    const nextSlide = () =>
+        setCurrent((prev) => (car && car.images ? (prev === car.images.length - 1 ? 0 : prev + 1) : 0));
+
+    // Utility: compute full days
+    const computeDays = (startLocal: string, endLocal: string) => {
+        if (!startLocal || !endLocal) return 0;
+        const start = new Date(startLocal);
+        const end = new Date(endLocal);
+        const startMs = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+        const endMs = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+        const diffDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24));
+        return diffDays > 0 ? diffDays : 0;
+    };
+
+    // Derived values
+    const days = useMemo(() => computeDays(startDateTime, endDateTime), [startDateTime, endDateTime]);
+    const dailyRate = car?.price ?? 0;
+    const subtotal = useMemo(() => +(dailyRate * days), [dailyRate, days]);
+    const protectionCost = useMemo(() => PROTECTION_RATES[protection] || 0, [protection]);
+    const tax = useMemo(() => +((subtotal + protectionCost) * TAX_RATE), [subtotal, protectionCost]);
+    const promoDiscount = useMemo(() => (promoCode.trim().toUpperCase() === "SAVE1000" ? 1000 : 0), [promoCode]);
+    const total = useMemo(() => {
+        const raw = subtotal + protectionCost + tax - promoDiscount;
+        return +(raw > 0 ? raw : 0);
+    }, [subtotal, protectionCost, tax, promoDiscount]);
+
+    const dateError = useMemo(() => {
+        if (!startDateTime || !endDateTime) return "";
+        const start = new Date(startDateTime);
+        const end = new Date(endDateTime);
+        if (end <= start) return "Return must be after pickup.";
+        return "";
+    }, [startDateTime, endDateTime]);
+
+    if (loading) return <div>Loading car details…</div>;
+    if (fetchError) return <div className="text-red-600">{fetchError}</div>;
+    if (!car) return <div>No car found.</div>;
+
+return (
+        <div className="min-h-screen flex flex-col bg-gray-50">
             <Navbar />
-            {/* === Carousel === */}
-            <div className="space-y-4">
-                <div className="w-full h-72 md:h-96 rounded-lg overflow-hidden">
-                    <img
-                        src={car.images[current]}
-                        alt="Car"
-                        className="w-full h-full object-cover transition-all duration-500"
-                    />
-                </div>
-                <div className="flex gap-2 overflow-x-auto">
-                    {car.images.map((img, index) => (
-                        <button
-                            key={index}
-                            onClick={() => setCurrent(index)}
-                            className={`flex-shrink-0 w-24 h-16 rounded overflow-hidden border-2 ${
-                                current === index ? "border-[#00a699]" : "border-transparent"
-                            }`}
-                        >
-                            <img
-                                src={img}
-                                alt={`Thumbnail ${index + 1}`}
-                                className="w-full h-full object-cover"
-                            />
-                        </button>
-                    ))}
-                </div>
-                <div className="text-right">
-                    <button className="px-4 py-2 text-sm font-semibold border rounded hover:bg-gray-100">
-                        View {car.images.length} photos
-                    </button>
-                </div>
-            </div>
 
-            {/* === Header === */}
-            <div>
-                <h1 className="text-3xl font-bold flex items-center gap-2">
-                    <Car className="w-7 h-7 text-[#00a699]" />
-                    {car.name}
-                </h1>
-                <p className="text-gray-600">{car.trim}</p>
-                <div className="flex items-center space-x-2 mt-2">
-                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                    <p className="text-gray-700">
-                        {car.rating} ({car.trips} trips)
-                    </p>
-                </div>
-            </div>
+            <main className="flex-grow pt-24 pb-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+                    {/* Gallery Card */}
+                    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                        <div className="grid grid-cols-3 gap-2">
+                            {/* Hero image */}
+                            <div className="relative col-span-2 h-72 md:h-96">
+                                <img
+                                    src={car.images[current]}
+                                    alt={`Car ${current + 1}`}
+                                    className="w-full h-full object-cover bg-gray-100 transition-all duration-500"
+                                />
 
-            {/* === Specs === */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div className="flex items-center gap-2">
-                    <Car className="w-5 h-5 text-gray-500" />
-                    <div>
-                        <p className="font-semibold">Seats</p>
-                        <p className="text-gray-600">{car.specs.seats}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Car className="w-5 h-5 text-gray-500" />
-                    <div>
-                        <p className="font-semibold">Fuel</p>
-                        <p className="text-gray-600">{car.specs.fuel}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Car className="w-5 h-5 text-gray-500" />
-                    <div>
-                        <p className="font-semibold">Transmission</p>
-                        <p className="text-gray-600">{car.specs.transmission}</p>
-                    </div>
-                </div>
-            </div>
+                                <button
+                                    onClick={() => setShowModal(true)}
+                                    className="absolute bottom-3 right-3 bg-white/90 px-4 py-2 text-sm font-semibold rounded shadow hover:bg-white"
+                                >
+                                    View {car.images.length} photos
+                                </button>
 
-            {/* === Trip Dates === */}
-            <div>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Pencil className="w-5 h-5 text-[#00a699]" />
-                    Your trip
-                </h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block font-semibold">Trip start</label>
-                        <input
-                            type="text"
-                            value={car.trip.startDate}
-                            readOnly
-                            className="w-full border rounded px-3 py-2 mt-1"
-                        />
-                        <select className="w-full border rounded px-3 py-2 mt-2">
-                            {car.trip.startTimeOptions.map((time) => (
-                                <option key={time}>{time}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block font-semibold">Trip end</label>
-                        <input
-                            type="text"
-                            value={car.trip.endDate}
-                            readOnly
-                            className="w-full border rounded px-3 py-2 mt-1"
-                        />
-                        <select className="w-full border rounded px-3 py-2 mt-2">
-                            {car.trip.endTimeOptions.map((time) => (
-                                <option key={time}>{time}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* === Pickup & Return === */}
-            <div>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-[#00a699]" />
-                    Pickup & return location
-                </h2>
-                <p className="text-gray-700">Oakland, CA 94621</p>
-                <p className="text-sm text-gray-500 mt-1">
-                    We’ll send you the exact address once your trip is booked.
-                </p>
-                <div className="mt-4 space-y-3">
-                    {car.pickupLocations.map((loc) => (
-                        <div
-                            key={loc.name}
-                            className="border rounded p-3 flex items-start gap-2"
-                        >
-                            <MapPin className="w-5 h-5 text-gray-500 mt-1" />
-                            <div>
-                                <p className="font-semibold">{loc.name}</p>
-                                <p className="text-sm text-gray-500">{loc.type}</p>
-                                {loc.address && (
-                                    <p className="text-sm text-gray-400">{loc.address}</p>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* === Tabs Section === */}
-            <div>
-                {/* Tab buttons */}
-                <div className="flex gap-6 border-b">
-                    {["overview", "policies"].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`pb-2 font-semibold ${
-                                activeTab === tab
-                                    ? "border-b-2 border-[#00a699] text-[#00a699]"
-                                    : "text-gray-500"
-                            }`}
-                        >
-                            {tab === "overview" ? "Overview" : "Policies"}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab content */}
-                <div className="mt-6 space-y-6">
-                    {activeTab === "overview" && (
-                        <div className="space-y-6">
-                            {/* Deluxe class */}
-                            <div className="flex items-start gap-2">
-                                <ShieldCheck className="w-5 h-5 text-[#00a699]" />
-                                <div>
-                                    <h3 className="font-semibold">Deluxe class</h3>
-                                    <p className="text-gray-600">{car.overview.deluxeClass}</p>
-                                </div>
-                            </div>
-
-                            {/* Vehicle features */}
-                            <div>
-                                <h3 className="font-semibold mb-2">Vehicle features</h3>
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-sm font-semibold">Safety</p>
-                                        <ul className="list-disc list-inside text-gray-600">
-                                            {car.overview.features.safety.map((f) => (
-                                                <li key={f}>{f}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold">Device connectivity</p>
-                                        <ul className="list-disc list-inside text-gray-600">
-                                            {car.overview.features.connectivity.map((f) => (
-                                                <li key={f}>{f}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                                <button className="mt-2 text-sm text-[#00a699] font-semibold hover:underline">
-                                    See all features
+                                <button
+                                    onClick={prevSlide}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={nextSlide}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white p-2 rounded-full hover:bg-black/60"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            {/* Included in the price */}
-                            <div>
-                                <h3 className="font-semibold mb-2">Included in the price</h3>
-                                <ul className="list-disc list-inside text-gray-600">
-                                    {car.overview.included.map((item) => (
-                                        <li key={item}>{item}</li>
-                                    ))}
+                            {/* Two stacked previews */}
+                            <div className="flex flex-col gap-2 h-72 md:h-96">
+                                <div
+                                    onClick={nextSlide}
+                                    className="cursor-pointer flex-1 rounded-lg overflow-hidden opacity-80 hover:opacity-100 transition"
+                                >
+                                    <img
+                                        src={car.images[(current + 1) % car.images.length]}
+                                        alt="Next preview"
+                                        className="w-full h-full object-cover bg-gray-100"
+                                    />
+                                </div>
+                                <div
+                                    onClick={prevSlide}
+                                    className="cursor-pointer flex-1 rounded-lg overflow-hidden opacity-80 hover:opacity-100 transition"
+                                >
+                                    <img
+                                        src={car.images[(current + 2) % car.images.length]}
+                                        alt="Next preview"
+                                        className="w-full h-full object-cover bg-gray-100"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Dots indicator */}
+                        <div className="flex justify-center gap-2 mt-4 pb-4">
+                            {car.images.map((_, index) => (
+                                <span
+                                    key={index}
+                                    onClick={() => setCurrent(index)}
+                                    className={`w-3 h-3 rounded-full cursor-pointer ${
+                                        current === index ? "bg-[#00a699]" : "bg-gray-300"
+                                    }`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Main content: left details + right booking summary */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Left: Vehicle Info */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h1 className="text-2xl font-bold">{car.title}</h1>
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <span>⭐ {car.rating}</span>
+                                    <span>({car.trips} trips)</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-6 text-xs text-gray-700">
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.seats} seats</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Gauge className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.cc} cc</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Fuel className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.fuelType}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <CarIcon className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.cruiseControl ? "Cruise Control" : "No Cruise Control"}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Settings className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.transmission}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Droplet className="w-4 h-4 text-gray-500" />
+                                    <span>{car.features.fuelConsumption} MPG</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 text-sm text-gray-700 mt-4">
+                                <img
+                                    src={car.host.profileImage}
+                                    alt={car.host.name}
+                                    className="w-12 h-12 rounded-full object-cover border"
+                                />
+                                <div>
+                                    <p className="font-semibold">Host: {car.host.name}</p>
+                                    <p>{car.host.trips} trips · Joined {car.host.joined}</p>
+                                    <p>Host rating: {car.host.rating} ⭐</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4">
+                <span className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">
+                  {car.class}
+                </span>
+                                <p className="text-xs text-gray-600 mt-2">{car.classNote}</p>
+                            </div>
+
+                            <div className="mt-8 border-t pt-6">
+                                <h2 className="text-lg font-semibold mb-4">Rules of the Road</h2>
+                                <ul className="space-y-3 text-sm">
+                                    <li>
+                                        <strong>No smoking allowed:</strong> Smoking in any vehicle will result in a $150 fine.
+                                    </li>
+                                    <li>
+                                        <strong>Keep the vehicle tidy:</strong> Unreasonably dirty vehicles may result in a fine.
+                                    </li>
+                                    <li>
+                                        <strong>Refuel the vehicle:</strong> Vehicle should have the same amount of fuel.
+                                    </li>
+                                    <li>
+                                        <strong>No off‑roading:</strong> Vehicles are not permitted to be driven off‑road.
+                                    </li>
                                 </ul>
                             </div>
-
-                            {/* Trip savings */}
-                            <div className="flex items-start gap-2">
-                                <Clock className="w-5 h-5 text-[#00a699]" />
-                                <div>
-                                    <h3 className="font-semibold">Trip savings</h3>
-                                    <p className="text-gray-600">{car.overview.savings}</p>
-                                </div>
-                            </div>
                         </div>
-                    )}
 
-                    {activeTab === "policies" && (
-                        <div className="space-y-6">
-                            {/* Cancellation policy */}
-                            <div className="flex items-start gap-2">
-                                <Trash2 className="w-5 h-5 text-red-500" />
-                                <div>
-                                    <h3 className="font-semibold">Cancellation policy</h3>
-                                    <p className="text-gray-600">{car.overview.cancellation}</p>
+                        {/* Right: Booking Card */}
+                        <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+                            {/* Price */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-xl font-bold text-green-600">
+                                    Ksh {car.price}
+                                </span>
+                                <span className="text-sm text-gray-500">Per Day</span>
+                            </div>
+
+                            {/* Trip Dates */}
+                            <div className="text-sm text-gray-700 space-y-3">
+                                <div className="flex flex-col">
+                                    <label className="font-semibold mb-1">Trip start</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={startDateTime || formattedTodayLocal}
+                                        onChange={(e) => setStartDateTime(e.target.value)}
+                                        className="border rounded px-2 py-1 text-sm"
+                                        aria-label="Trip start"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col">
+                                    <label className="font-semibold mb-1">Trip end</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={endDateTime || formattedTodayLocal}
+                                        onChange={(e) => setEndDateTime(e.target.value)}
+                                        className="border rounded px-2 py-1 text-sm"
+                                        aria-label="Trip end"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col">
+                                    <label className="font-semibold mb-1">Pickup & return location</label>
+                                    <LocationSearch onSelect={() => {}} />
                                 </div>
                             </div>
 
-                            {/* Payment options */}
-                            <div className="flex items-start gap-2">
-                                <CreditCard className="w-5 h-5 text-[#00a699]" />
-                                <div>
-                                    <h3 className="font-semibold">Payment options</h3>
-                                    <p className="text-gray-600">{car.overview.payment}</p>
+                            {/* Summary */}
+                            <div className="mt-2 text-sm text-gray-700 space-y-2">
+                                <div className="flex justify-between">
+                                    <span>Days</span>
+                                    <span>{days}</span>
+                                </div>
+
+                                <div className="flex justify-between">
+                                    <span>Subtotal</span>
+                                    <span>Ksh {subtotal.toLocaleString()}</span>
                                 </div>
                             </div>
 
-                            {/* Distance included */}
-                            <div className="flex items-start gap-2">
-                                <Smartphone className="w-5 h-5 text-[#00a699]" />
-                                <div>
-                                    <h3 className="font-semibold">Distance included</h3>
-                                    <p className="text-gray-600">{car.overview.distance}</p>
+                            <div className="mt-4 border-t pt-4">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Total</p>
+                                    </div>
+                                    <div className="text-xl font-semibold text-gray-900">Ksh {total.toLocaleString()}</div>
                                 </div>
                             </div>
+
+                            <button
+                                disabled={days === 0 || !!dateError}
+                                onClick={() => alert("Proceed to reservation (demo)")}
+                                className={`mt-4 w-full py-3 rounded-lg font-semibold text-white ${days === 0 || !!dateError ? "bg-gray-300 cursor-not-allowed" : "bg-[#00a699] hover:opacity-95"}`}
+                            >
+                                Confirm and pay
+                            </button>
+
+                            {dateError && <p className="text-xs text-red-600 mt-2">{dateError}</p>}
                         </div>
-                    )}
+                    </div>
                 </div>
-            </div>
+            </main>
+
             <Footer />
         </div>
     );
-}
+};

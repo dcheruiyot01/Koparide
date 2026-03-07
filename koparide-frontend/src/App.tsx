@@ -11,7 +11,7 @@ import { useAuth } from "./auth/useAuth";
 import { ProfileHome } from "./layout/ProfileHome"
 import { HostPage } from "./pages/HostPage"
 import { CarPage } from "./pages/CarPage"
-import { CarListingsPage } from "./pages/CarListingsPage"
+import { CarsPage } from "./pages/CarsPage.tsx"
 import { MessagesNotificationsPage } from "./pages/MessagesPage"
 import {ReservationPage} from "./pages/ReservationsPage";
 
@@ -33,7 +33,7 @@ export const App = () => {
             <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<HomePage/>} />
-                <Route path="/listings" element={<CarListingsPage/>} />
+                <Route path="/cars" element={<CarsPage/>} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -63,7 +63,7 @@ export const App = () => {
                     }
                 />
                 <Route
-                    path="/cars/1"
+                    path="/cars/:id"
                     element={
                         <ProtectedRoute>
                             <CarPage />
@@ -71,7 +71,7 @@ export const App = () => {
                     }
                 />
                 <Route
-                    path="/cars/1/reservations"
+                    path="/cars/:id/reservations"
                     element={
                         <ProtectedRoute>
                             <ReservationPage />

@@ -45,7 +45,7 @@ interface Filters {
 // Mock locations for cars (since your API doesn't have location)
 const MOCK_LOCATIONS = ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika", "Machakos"];
 
-export const CarListingsPage: React.FC = () => {
+export const CarsPage: React.FC = () => {
     const locationHook = useLocation();
     const navigate = useNavigate();
 

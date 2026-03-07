@@ -1,4 +1,3 @@
-import React from 'react'
 import type {HostCar} from '../../types/host'
 import { Star, MapPin, Pencil, Trash2, Car } from 'lucide-react'
 
