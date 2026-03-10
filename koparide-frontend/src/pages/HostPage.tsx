@@ -21,11 +21,37 @@ export const HostPage = () => {
     const auth = useContext(AuthContext);
     // Success banner logic
     const location = useLocation();
+    const navigate = useNavigate();
+    const [successMessage, setSuccessMessage] = useState<string | null>(
+        location.state?.successMessage || null
+    );
 
-    if (!auth) return <div>Authentication system unavailable</div>;
+    // Handle auth first - before any logs that use user
+    if (!auth) {
+        console.error('❌ [HostPage] AuthContext not found');
+        return <div>Authentication system unavailable</div>;
+    }
+
     const { user } = auth;
-    if (!user) return <div>Please log in to view your listings</div>;
+
+    if (!user) {
+        console.warn('⚠️ [HostPage] No user in AuthContext');
+        return <div>Please log in to view your listings</div>;
+    }
+
     const loggedInUserId = user.id;
+
+    // Now we can safely log with user
+    console.log('🔍 [HostPage] Rendering with state:', {
+        carsCount: cars.length,
+        loading,
+        fetchError,
+        showForm,
+        hasUser: !!user,
+        userId: user?.id
+    });
+
+    console.log('👤 [HostPage] Logged in user ID:', loggedInUserId);
 
     // Stats summary
     const stats = useMemo(() => {
@@ -37,35 +63,51 @@ export const HostPage = () => {
             (c) => String(c.status ?? '').trim().toLowerCase() === 'pending'
         ).length;
         const deleted = cars.filter((c) => Boolean(c.is_deleted)).length;
+
+        console.log('📊 [HostPage] Stats calculated:', { total, approved, pending, deleted });
         return { total, approved, pending, deleted };
     }, [cars]);
 
     const handleAddNew = () => {
+        console.log('➕ [HostPage] Add new car clicked');
         setEditingCar(null);
         setShowForm(true);
     };
 
     const handleEdit = (car: Car) => {
+        console.log('✏️ [HostPage] Edit car clicked:', car.id, car.make, car.model);
         setEditingCar(car);
         setShowForm(true);
     };
 
     const handleDelete = (carId: string | number) => {
+        console.log('🗑️ [HostPage] Delete car clicked:', carId);
         if (window.confirm('Are you sure you want to delete this listing?')) {
-            setCars((prev) => prev.filter((car) => car.id !== carId));
+            console.log('✅ [HostPage] Delete confirmed for car:', carId);
+            setCars((prev) => {
+                const filtered = prev.filter((car) => car.id !== carId);
+                console.log('📦 [HostPage] Cars after delete:', filtered.length);
+                return filtered;
+            });
+        } else {
+            console.log('❌ [HostPage] Delete cancelled for car:', carId);
         }
     };
 
     const handleSave = (
         carData: Omit<Car, 'id' | 'rating' | 'trips'> & { id?: string | number }
     ) => {
+        console.log('💾 [HostPage] Save car called:', carData.id ? 'Update' : 'Create', carData);
+
         if (carData.id) {
             // Update existing car in local state
-            setCars((prev) =>
-                prev.map((car) =>
+            setCars((prev) => {
+                const updated = prev.map((car) =>
                     car.id === carData.id ? { ...car, ...carData } : car
-                )
-            )
+                );
+                console.log('📦 [HostPage] Cars after update:', updated.length);
+                return updated;
+            });
         } else {
             // Add new car
             const newCar: Car = {
@@ -73,16 +115,22 @@ export const HostPage = () => {
                 id: Date.now().toString(),
                 rating: 0,
                 trips: 0,
-            }
-            setCars((prev) => [newCar, ...prev])
+            };
+            console.log('🆕 [HostPage] New car created:', newCar);
+            setCars((prev) => {
+                const updated = [newCar, ...prev];
+                console.log('📦 [HostPage] Cars after add:', updated.length);
+                return updated;
+            });
         }
 
         // Don't refetch - trust our local state
-        setShowForm(false)
-        setEditingCar(null)
-    }
+        setShowForm(false);
+        setEditingCar(null);
+    };
 
     const handleCancel = () => {
+        console.log('❌ [HostPage] Form cancelled');
         setShowForm(false);
         setEditingCar(null);
     };
@@ -90,54 +138,102 @@ export const HostPage = () => {
     // Fetch cars
     useEffect(() => {
         let mounted = true;
+
         const fetchCars = async () => {
+            console.log('🔄 [HostPage] Fetching cars for user:', loggedInUserId);
+
             try {
                 setLoading(true);
                 setFetchError(null);
 
+                console.log('📡 [HostPage] Making API call to /api/cars');
                 const res = await api.get('/api/cars');
+
+                console.log('📥 [HostPage] API response received:', {
+                    status: res.status,
+                    hasData: !!res.data,
+                    dataType: typeof res.data,
+                    isArray: Array.isArray(res.data?.data)
+                });
+
                 const carsData = res.data?.data;
 
+                console.log('🔍 [HostPage] Raw carsData:', carsData);
+
                 if (!Array.isArray(carsData)) {
-                    console.error('Expected array but got:', carsData);
-                    if (mounted) setCars([]);
+                    console.error('❌ [HostPage] Expected array but got:', carsData);
+                    if (mounted) {
+                        setCars([]);
+                        console.log('📦 [HostPage] Cars set to empty array due to invalid data');
+                    }
                     return;
                 }
 
-                const filtered = carsData.filter(
-                    (c: ApiCar) => String(c.ownerId) === String(loggedInUserId)
-                );
+                console.log('📊 [HostPage] Total cars from API:', carsData.length);
+
+                const filtered = carsData.filter((c: ApiCar) => {
+                    const matches = String(c.ownerId) === String(loggedInUserId);
+                    if (matches) {
+                        console.log('✅ [HostPage] Car matches user:', c.id, c.make, c.model);
+                    }
+                    return matches;
+                });
+
+                console.log('🎯 [HostPage] Filtered cars for user:', filtered.length);
+
+                // Normalize the filtered cars
+                const normalized = filtered.map((c: ApiCar) => {
+                    const normalizedCar = normalizeCar(c);
+                    console.log('🔄 [HostPage] Normalized car:', normalizedCar.id, normalizedCar.make, normalizedCar.model);
+                    return normalizedCar;
+                });
+
+                if (mounted) {
+                    setCars(normalized);
+                    console.log('📦 [HostPage] Cars state updated with', normalized.length, 'cars');
+                }
             } catch (err) {
-                console.error('Failed to fetch cars', err);
+                console.error('❌ [HostPage] Failed to fetch cars:', err);
                 if (mounted) {
                     setFetchError('Failed to load cars. Please try again later.');
+                    console.log('⚠️ [HostPage] Fetch error state set');
                 }
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted) {
+                    setLoading(false);
+                    console.log('🏁 [HostPage] Loading complete');
+                }
             }
         };
 
+        console.log('🚀 [HostPage] Fetch effect triggered for user:', loggedInUserId);
         fetchCars();
+
         return () => {
+            console.log('🧹 [HostPage] Cleanup: component unmounting');
             mounted = false;
         };
     }, [loggedInUserId, location.key]);
 
-
-    const navigate = useNavigate();
-    const [successMessage, setSuccessMessage] = useState<string | null>(
-        location.state?.successMessage || null
-    );
-
     useEffect(() => {
         if (successMessage) {
+            console.log('✨ [HostPage] Success message displayed:', successMessage);
             const timer = setTimeout(() => {
                 setSuccessMessage(null);
                 navigate(location.pathname, { replace: true }); // clear router state
+                console.log('🧹 [HostPage] Success message cleared');
             }, 5000);
             return () => clearTimeout(timer);
         }
     }, [successMessage, navigate, location.pathname]);
+
+    // Log when cars are passed to MyListings
+    useEffect(() => {
+        console.log('📤 [HostPage] Passing cars to MyListings:', cars.length);
+        if (cars.length === 0 && !loading && !fetchError) {
+            console.warn('⚠️ [HostPage] MyListings will show empty state - no cars available');
+        }
+    }, [cars, loading, fetchError]);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -196,12 +292,15 @@ export const HostPage = () => {
                     {showForm ? (
                         <CarForm editingCar={editingCar} onSave={handleSave} onCancel={handleCancel} />
                     ) : (
-                        <MyListings
-                            cars={cars}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                            onAddNew={handleAddNew}
-                        />
+                        <>
+                            {console.log('🎨 [HostPage] Rendering MyListings with cars:', cars.length)}
+                            <MyListings
+                                cars={cars}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                                onAddNew={handleAddNew}
+                            />
+                        </>
                     )}
                 </div>
             </main>

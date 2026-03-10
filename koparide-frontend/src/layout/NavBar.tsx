@@ -5,11 +5,8 @@ import {
     X,
     User,
     LogOut,
-    Heart,
     MessageSquare,
-    Settings,
-    Briefcase,
-    Calendar
+    Briefcase
 } from "lucide-react"
 import { useAuth } from "../auth/useAuth"
 import { RegisterModal } from "../pages/auth/user/RegisterModal.tsx"
@@ -112,7 +109,7 @@ export const Navbar = () => {
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-6">
                         <a
-                            href="#explore"
+                            href="/cars"
                             className={`px-3 py-1.5 rounded-full border text-sm font-medium transition no-underline hover:no-underline ${
                                 isScrolled ? "text-gray-700" : "text-white"}`}
                         >
@@ -120,7 +117,7 @@ export const Navbar = () => {
                         </a>
 
                         <a
-                            href="#how-it-works"
+                            href="/#how-it-works"
                             className={`text-sm font-medium transition hover:opacity-80 no-underline hover:no-underline ${
                                 isScrolled ? "text-gray-700" : "text-white"
                             }`}
@@ -129,7 +126,7 @@ export const Navbar = () => {
                         </a>
 
                         <a
-                            href="#become-a-host"
+                            href="/host"
                             className={`text-sm font-medium transition hover:opacity-80 no-underline hover:no-underline ${
                                 isScrolled ? "text-gray-700" : "text-white"
                             }`}
@@ -359,7 +356,7 @@ export const Navbar = () => {
                     ) : (
                         <>
                             <a
-                                href="#explore"
+                                href="/cars"
                                 className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
                                 onClick={closeMobileMenu}
                             >
@@ -367,7 +364,7 @@ export const Navbar = () => {
                             </a>
 
                             <a
-                                href="#how-it-works"
+                                href="/#how-it-works"
                                 className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
                                 onClick={closeMobileMenu}
                             >
@@ -375,7 +372,7 @@ export const Navbar = () => {
                             </a>
 
                             <a
-                                href="#become-a-host"
+                                href="/host"
                                 className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
                                 onClick={closeMobileMenu}
                             >
