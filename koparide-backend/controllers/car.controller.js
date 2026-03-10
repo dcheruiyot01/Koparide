@@ -7,6 +7,7 @@
  */
 
 const CarService = require('../services/car.service');
+const uploadImages = require('../services/upload.service');
 const MailService = require('../services/mail.service'); // notification emails
 
 module.exports = {
@@ -17,26 +18,113 @@ module.exports = {
      */
     async createCarListing(req, res, next) {
         try {
+            // 1. Create base car record
             const car = await CarService.createCarListing({
                 ownerId: req.user.id,
                 ...req.body
             });
 
-            await MailService.sendEmail(
-                req.user.email,
-                'Car Listing Pending Approval',
-                `Dear ${req.user.name},
+            if (!car) {
+                return res.status(400).json({ message: "Car could not be created" });
+            }
 
-Your car "${car.make} ${car.model}" has been submitted successfully.
-It is now pending approval by our admin team (up to 24 hours).
+            // 2. Upload images (if any were attached)
+            let uploadedImages = [];
+            if (req.files && req.files.length > 0) {
+                uploadedImages = await CarService.uploadCarImages(car.id, req.files);
+            }
 
-Thank you for listing with us!`
-            );
+            // 3. Re-fetch full car with images included
+            const fullCar = await CarService.getCarById(car.id);
 
-            res.status(201).json({
-                message: 'Car listing submitted successfully. Pending approval.',
-                car
+            // 4. Send email notification
+            await MailService.sendMail({
+                to: req.user.email,
+                subject: "Car Listing Pending Approval",
+                html: `
+                <p>Dear ${req.user.name},</p>
+                <p>Your car "${car.make} ${car.model}" has been submitted successfully.</p>
+                <p>It is now pending approval by our admin team (up to 24 hours).</p>
+                <p>Thank you for listing with us!</p>
+            `
             });
+
+            // 5. Respond with created car
+            res.status(201).json({
+                message: "Car listing submitted successfully. Pending approval.",
+                car: fullCar,
+                images: uploadedImages.map(img => img.url)
+            });
+
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    /**
+     * Update a car listing
+     * - Owner must be authenticated (req.user)
+     * - Sends notification email to owner
+     */
+    async updateCarListing(req, res, next) {
+        try {
+            const { id } = req.params;
+
+            // 1. Extract text fields
+            const updateData = {
+                ownerId: req.user.id,
+                ...req.body
+            };
+
+            // 2. Update base car fields
+            const updatedCar = await CarService.updateCarListing(id, updateData);
+            if (!updatedCar) {
+                return res.status(404).json({ message: "Car listing not found" });
+            }
+
+            // 3. Handle existing images from body
+            const { existingImages } = req.body;
+            let oldImages = [];
+            if (existingImages) {
+                oldImages = Array.isArray(existingImages)
+                    ? existingImages
+                    : JSON.parse(existingImages);
+            }
+
+            // 4. Upload new images (if any)
+            let newImages = [];
+            if (req.files && req.files.length > 0) {
+                newImages = await CarService.uploadCarImages(updatedCar.id, req.files);
+            }
+
+            // 5. Combine old + new (URLs only for response, DB handled in uploadCarImages)
+            const finalImages = [
+                ...oldImages,
+                ...newImages.map(img => img.url)
+            ];
+
+            // 6. Re-fetch full car with images included
+            const fullCar = await CarService.getCarById(updatedCar.id);
+
+            // 7. Send email notification
+            await MailService.sendMail({
+                to: req.user.email,
+                subject: "Car Listing Updated - Pending Approval",
+                html: `
+                <p>Dear ${req.user.name},</p>
+                <p>Your car "${updatedCar.make} ${updatedCar.model}" has been updated successfully.</p>
+                <p>The changes are now pending approval by our admin team (up to 24 hours).</p>
+                <p>Thank you for keeping your listing up to date!</p>
+            `
+            });
+
+            // 8. Respond with updated car
+            res.status(200).json({
+                message: "Car listing updated successfully. Pending approval.",
+                car: fullCar,
+                images: finalImages
+            });
+
         } catch (err) {
             next(err);
         }

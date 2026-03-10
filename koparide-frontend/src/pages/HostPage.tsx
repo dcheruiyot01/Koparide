@@ -1,104 +1,74 @@
-import React, { useState } from 'react'
-import { Plus } from 'lucide-react'
-import { Navbar } from '../layout/NavBar'
-import { Footer } from '../layout/Footer'
-import { MyListings } from '../components/host/MyListings'
-import type {HostCar} from '../types/host'
+// pages/HostPage.tsx
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import { Navbar } from '../layout/NavBar';
+import { Footer } from '../layout/Footer';
+import { MyListings } from '../components/host/MyListings';
+import type { Car } from '../types/car.ts';
+import { CarForm } from '../components/host/CarForm';
+import api from '../api/axios';
+import { AuthContext } from '../auth/AuthContext';
+import { normalizeCar, type ApiCar } from '../utils/carNormalizer';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import { CarForm } from '../components/host/CarForm'
-const initialCars: HostCar[] = [
-    {
-        id: '1',
-        name: 'Tesla Model 3 2022',
-        year: 2022,
-        make: 'Tesla',
-        model: 'Model 3',
-        price: 89,
-        location: 'San Francisco, CA',
-        image:
-            'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&q=80',
-        rating: 4.9,
-        trips: 142,
-        status: 'active',
-        description: 'Premium electric sedan with autopilot features.',
-        transmission: 'automatic',
-        seats: 5,
-        fuelType: 'electric',
-    },
-    {
-        id: '2',
-        name: 'BMW 3 Series 2021',
-        year: 2021,
-        make: 'BMW',
-        model: '3 Series',
-        price: 95,
-        location: 'Los Angeles, CA',
-        image:
-            'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=400&q=80',
-        rating: 4.8,
-        trips: 89,
-        status: 'active',
-        description: 'Luxury sports sedan with premium interior.',
-        transmission: 'automatic',
-        seats: 5,
-        fuelType: 'gas',
-    },
-    {
-        id: '3',
-        name: 'Toyota RAV4 2020',
-        year: 2020,
-        make: 'Toyota',
-        model: 'RAV4',
-        price: 65,
-        location: 'Seattle, WA',
-        image:
-            'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=400&q=80',
-        rating: 4.7,
-        trips: 215,
-        status: 'inactive',
-        description: 'Reliable SUV perfect for family trips.',
-        transmission: 'automatic',
-        seats: 5,
-        fuelType: 'hybrid',
-    },
-]
 export const HostPage = () => {
-    const [cars, setCars] = useState<HostCar[]>(initialCars)
-    const [editingCar, setEditingCar] = useState<HostCar | null>(null)
-    const [showForm, setShowForm] = useState(false)
+    const [cars, setCars] = useState<Car[]>([]);
+    const [editingCar, setEditingCar] = useState<Car | null>(null);
+    const [showForm, setShowForm] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+
+    const auth = useContext(AuthContext);
+    // Success banner logic
+    const location = useLocation();
+
+    if (!auth) return <div>Authentication system unavailable</div>;
+    const { user } = auth;
+    if (!user) return <div>Please log in to view your listings</div>;
+    const loggedInUserId = user.id;
+
+    // Stats summary
+    const stats = useMemo(() => {
+        const total = cars.length;
+        const approved = cars.filter(
+            (c) => String(c.status ?? '').trim().toLowerCase() === 'approved'
+        ).length;
+        const pending = cars.filter(
+            (c) => String(c.status ?? '').trim().toLowerCase() === 'pending'
+        ).length;
+        const deleted = cars.filter((c) => Boolean(c.is_deleted)).length;
+        return { total, approved, pending, deleted };
+    }, [cars]);
+
     const handleAddNew = () => {
-        setEditingCar(null)
-        setShowForm(true)
-    }
-    const handleEdit = (car: HostCar) => {
-        setEditingCar(car)
-        setShowForm(true)
-    }
-    const handleDelete = (carId: string) => {
+        setEditingCar(null);
+        setShowForm(true);
+    };
+
+    const handleEdit = (car: Car) => {
+        setEditingCar(car);
+        setShowForm(true);
+    };
+
+    const handleDelete = (carId: string | number) => {
         if (window.confirm('Are you sure you want to delete this listing?')) {
-            setCars((prev) => prev.filter((car) => car.id !== carId))
+            setCars((prev) => prev.filter((car) => car.id !== carId));
         }
-    }
+    };
+
     const handleSave = (
-        carData: Omit<HostCar, 'id' | 'rating' | 'trips'> & {
-            id?: string
-        },
+        carData: Omit<Car, 'id' | 'rating' | 'trips'> & { id?: string | number }
     ) => {
         if (carData.id) {
-            // Update existing car
+            // Update existing car in local state
             setCars((prev) =>
                 prev.map((car) =>
-                    car.id === carData.id
-                        ? {
-                            ...car,
-                            ...carData,
-                        }
-                        : car,
-                ),
+                    car.id === carData.id ? { ...car, ...carData } : car
+                )
             )
         } else {
             // Add new car
-            const newCar: HostCar = {
+            const newCar: Car = {
                 ...carData,
                 id: Date.now().toString(),
                 rating: 0,
@@ -106,19 +76,81 @@ export const HostPage = () => {
             }
             setCars((prev) => [newCar, ...prev])
         }
+
+        // Don't refetch - trust our local state
         setShowForm(false)
         setEditingCar(null)
     }
+
     const handleCancel = () => {
-        setShowForm(false)
-        setEditingCar(null)
-    }
+        setShowForm(false);
+        setEditingCar(null);
+    };
+
+    // Fetch cars
+    useEffect(() => {
+        let mounted = true;
+        const fetchCars = async () => {
+            try {
+                setLoading(true);
+                setFetchError(null);
+
+                const res = await api.get('/api/cars');
+                const carsData = res.data?.data;
+
+                if (!Array.isArray(carsData)) {
+                    console.error('Expected array but got:', carsData);
+                    if (mounted) setCars([]);
+                    return;
+                }
+
+                const filtered = carsData.filter(
+                    (c: ApiCar) => String(c.ownerId) === String(loggedInUserId)
+                );
+            } catch (err) {
+                console.error('Failed to fetch cars', err);
+                if (mounted) {
+                    setFetchError('Failed to load cars. Please try again later.');
+                }
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+
+        fetchCars();
+        return () => {
+            mounted = false;
+        };
+    }, [loggedInUserId, location.key]);
+
+
+    const navigate = useNavigate();
+    const [successMessage, setSuccessMessage] = useState<string | null>(
+        location.state?.successMessage || null
+    );
+
+    useEffect(() => {
+        if (successMessage) {
+            const timer = setTimeout(() => {
+                setSuccessMessage(null);
+                navigate(location.pathname, { replace: true }); // clear router state
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage, navigate, location.pathname]);
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Navbar />
 
             <main className="pt-24 pb-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {successMessage && (
+                        <div className="bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded mb-4 transition-opacity duration-500">
+                            {successMessage}
+                        </div>
+                    )}
+
                     {/* Page Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                         <div>
@@ -143,40 +175,26 @@ export const HostPage = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                                 <p className="text-sm text-gray-500">Total Listings</p>
-                                <p className="text-2xl font-bold text-gray-900">
-                                    {cars.length}
-                                </p>
+                                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                                <p className="text-sm text-gray-500">Active</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                    {cars.filter((c) => c.status === 'active').length}
-                                </p>
+                                <p className="text-sm text-gray-500">Approved</p>
+                                <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                                <p className="text-sm text-gray-500">Total Trips</p>
-                                <p className="text-2xl font-bold text-gray-900">
-                                    {cars.reduce((sum, c) => sum + c.trips, 0)}
-                                </p>
+                                <p className="text-sm text-gray-500">Pending</p>
+                                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
                             </div>
                             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                                <p className="text-sm text-gray-500">Avg. Rating</p>
-                                <p className="text-2xl font-bold text-[#00A699]">
-                                    {(
-                                        cars.reduce((sum, c) => sum + c.rating, 0) / cars.length
-                                    ).toFixed(1)}
-                                </p>
+                                <p className="text-sm text-gray-500">Deleted</p>
+                                <p className="text-2xl font-bold text-red-600">{stats.deleted}</p>
                             </div>
                         </div>
                     )}
 
                     {/* Form or Listings */}
                     {showForm ? (
-                        <CarForm
-                            editingCar={editingCar}
-                            onSave={handleSave}
-                            onCancel={handleCancel}
-                        />
+                        <CarForm editingCar={editingCar} onSave={handleSave} onCancel={handleCancel} />
                     ) : (
                         <MyListings
                             cars={cars}
@@ -190,5 +208,5 @@ export const HostPage = () => {
 
             <Footer />
         </div>
-    )
-}
+    );
+};

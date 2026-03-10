@@ -38,6 +38,7 @@ const Car = sequelize.define('Car', {
     // ✅ New feature fields
     seats: { type: DataTypes.INTEGER, allowNull: false },
     fuelType: { type: DataTypes.STRING, allowNull: false },
+    location: { type: DataTypes.STRING, allowNull: true },
     mpg: { type: DataTypes.DECIMAL(5, 2), allowNull: true }, // fuel efficiency
     transmission: { type: DataTypes.STRING, allowNull: true },
     cruiseControl: { type: DataTypes.BOOLEAN, defaultValue: false },

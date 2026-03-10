@@ -30,29 +30,63 @@ module.exports = {
     },
 
     /**
-     * Upload car images
-     * - Wraps in transaction to ensure consistency
+     * Update car listing
      */
-    async uploadCarImages(carId, images) {
+    async updateCarListing(id, data) {
+        return Car.update(data, {
+            where: { id },
+            returning: true
+        }).then(([count, rows]) => rows[0]);
+    },
+
+    /**
+     * Upload car images (one or many)
+     * - Accepts req.files from Multer
+     * - Saves metadata into CarImage table
+     * - Ensures only one primary image exists
+     * - Returns array of saved images
+     */
+    async uploadCarImages(carId, files = []) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
 
+        if (!files || files.length === 0) {
+            return [];
+        }
+
         return sequelize.transaction(async (t) => {
-            const created = await Promise.all(
-                images.map((url, idx) =>
-                    CarImage.create(
-                        {
-                            carId: car.id,
-                            url,
-                            altText: `${car.make} ${car.model}`,
-                            isPrimary: idx === 0,
-                            position: idx
-                        },
-                        { transaction: t }
-                    )
-                )
-            );
-            return { ...car.toJSON(), images: created };
+            // Check if car already has a primary image
+            const existingPrimary = await CarImage.findOne({
+                where: { carId, isPrimary: true },
+                transaction: t
+            });
+
+            let shouldSetPrimary = !existingPrimary;
+            const savedImages = [];
+
+            for (const file of files) {
+                const imageUrl =  process.env.BASE_URL+`/uploads/cars/${file.filename}`;
+
+                const saved = await CarImage.create(
+                    {
+                        carId,
+                        url: imageUrl,
+                        altText: `${car.make} ${car.model}`,
+                        isPrimary: shouldSetPrimary,
+                        position: savedImages.length
+                    },
+                    { transaction: t }
+                );
+
+                savedImages.push(saved);
+
+                // Only the first uploaded image becomes primary (if none existed)
+                if (shouldSetPrimary) {
+                    shouldSetPrimary = false;
+                }
+            }
+
+            return savedImages;
         });
     },
 
@@ -79,17 +113,22 @@ module.exports = {
 
     /**
      * Get all public cars (approved + not deleted)
-     * Supports pagination and filters
      */
-    async getPublicCars({ page = 1, limit = 10, classification, location }) {
-        const where = { status: 'approved', is_deleted: false };
+    async getPublicCars({ page = 1, limit = 100, classification, location }) {
+        const where = {};
+        // const where = { status: 'approved', is_deleted: false };
         if (classification) where.classification = classification;
         if (location) where.location = location;
 
         const { rows, count } = await Car.findAndCountAll({
             where,
             offset: (page - 1) * limit,
-            limit
+            limit,
+            include: [
+                { model: require('../models/CarImage'), as: 'imagesList' },
+                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email'] },
+                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email'] }
+            ]
         });
 
         return {
@@ -100,7 +139,6 @@ module.exports = {
 
     /**
      * Soft delete a car listing
-     * Prevent deletion if currently rented
      */
     async deleteCar(carId) {
         const car = await Car.findByPk(carId);
@@ -110,7 +148,7 @@ module.exports = {
     },
 
     /**
-     * Rent car (assign renter)
+     * Rent car
      */
     async rentCar(carId, renterId) {
         const car = await Car.findByPk(carId);
@@ -119,10 +157,9 @@ module.exports = {
         if (car.rented_to) throw new Error('Car is already rented');
         return car.update({ rented_to: renterId });
     },
+
     /**
      * Get car details by ID
-     * -------------------------
-     * Returns a single car with its images, owner, and renter info.
      */
     async getCarById(id) {
         const car = await Car.findByPk(id, {
@@ -141,7 +178,7 @@ module.exports = {
     },
 
     /**
-     * Return car (clear renter)
+     * Return car
      */
     async returnCar(carId) {
         const car = await Car.findByPk(carId);

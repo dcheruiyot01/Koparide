@@ -13,8 +13,12 @@ import React, { useEffect, useRef } from "react";
  */
 export const LocationSearch = ({
                                    onSelect,
+                                   value, // <-- NEW: allow preloaded value
+                                   className,
                                }: {
     onSelect?: (address: string) => void;
+    value?: string;
+    className?: string;
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const initializedRef = useRef(false);
@@ -43,6 +47,11 @@ export const LocationSearch = ({
                     const autocompleteEl = new PlaceAutocompleteElement();
                     autocompleteEl.setAttribute("placeholder", "Enter pickup location");
                     autocompleteEl.setAttribute("country", "KE");
+
+                    // NEW: preload value if provided
+                    if (value) {
+                        autocompleteEl.value = value;
+                    }
 
                     autocompleteEl.addEventListener("gmp-select", (e: any) => {
                         const callback = onSelectRef.current;
@@ -78,7 +87,6 @@ export const LocationSearch = ({
                     container.appendChild(autocompleteEl);
                 }
             } catch (error) {
-                // In production, you may want to report this to monitoring tools
                 console.error("Failed to initialize autocomplete:", error);
             }
         };
@@ -92,7 +100,7 @@ export const LocationSearch = ({
             }
             initializedRef.current = false;
         };
-    }, []);
+    }, [value]); // <-- reapply if value changes
 
-    return <div ref={containerRef} className="w-full" />;
+    return <div ref={containerRef} className={className} />;
 };

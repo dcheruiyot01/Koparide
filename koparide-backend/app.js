@@ -42,6 +42,7 @@ app.use('/api/cars', carRoutes);
 // Serve uploaded images
 app.use("/uploads/licenses", express.static(path.join(__dirname, "uploads/licenses")));
 app.use("/uploads/profiles", express.static(path.join(__dirname, "uploads/profiles")));
+app.use("/uploads/cars", express.static(path.join(__dirname, "uploads/cars")));
 
 // Centralized error handler (must be last)
 app.use(errorHandler);

@@ -136,7 +136,7 @@ export const HeroSection: React.FC = () => {
         if (year.trim()) params.set("year", year.trim());
         if (carType && carType !== "Any type") params.set("type", carType);
 
-        navigate(`/listings?${params.toString()}`);
+        navigate(`/cars?${params.toString()}`);
     };
 
     return (
