@@ -15,7 +15,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client(process.env.VITE_GOOGLE_CLIENT_ID);
 const User = require('../models/User');
 const MailService = require('./mail.service');
 const generateResetToken = require('../utils/generateResetToken');
@@ -133,7 +133,7 @@ module.exports = {
         // 1. Verify token with Google
         const ticket = await client.verifyIdToken({
             idToken,
-            audience: process.env.GOOGLE_CLIENT_ID
+            audience: process.env.VITE_GOOGLE_CLIENT_ID
         });
 
         const payload = ticket.getPayload();

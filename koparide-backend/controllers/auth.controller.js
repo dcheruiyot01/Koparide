@@ -39,11 +39,11 @@ module.exports = {
       const { accessToken, refreshToken, user } = await AuthService.login(req.body);
 
       // Set refresh token as secure, httpOnly cookie (browser can't access it directly)
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,                          // prevents JS access
-        secure: process.env.NODE_ENV === "production", // only HTTPS in prod
-        sameSite: "strict",                      // CSRF protection
-        maxAge: 30 * 24 * 60 * 60 * 1000         // 30 days
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // only secure in production
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
       // Return access token + user in response body
