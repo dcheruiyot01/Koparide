@@ -89,7 +89,7 @@ export const Login = ({ onSuccess }: LoginProps) => {
                 </form>
 
                 <Box mt={3}>
-                    <GoogleLoginButton />
+                    <GoogleLoginButton onSuccess={onSuccess} />
                 </Box>
 
                 <Box mt={3} textAlign="center">

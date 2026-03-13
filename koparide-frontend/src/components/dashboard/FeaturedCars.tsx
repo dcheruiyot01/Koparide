@@ -108,7 +108,7 @@ export const FeaturedCars: React.FC<FeaturedCarsProps> = ({
 
             const res = await api.get("/api/cars", {
                 params: {
-                    limit: 20, // Fetch more for better randomization
+                    limit: 200, // Fetch more for better randomization
                     status: 'approved',
                     is_deleted: false
                 },

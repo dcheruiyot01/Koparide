@@ -2,10 +2,9 @@
 import axios, { AxiosError } from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:4000", // TODO: move to env for prod
-    withCredentials: true // send cookies (refresh token) with requests
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000', // TODO: move to env for prod
+    withCredentials: true,   // required for cookies
 });
-
 // Attach access token dynamically (optional helper)
 export const setAuthToken = (token: string | null) => {
     if (token) {

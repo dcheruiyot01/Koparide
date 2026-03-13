@@ -2,14 +2,19 @@
 import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../auth/useAuth";
 
-export const GoogleLoginButton = () => {
+interface GoogleLoginButtonProps {
+    onSuccess?: () => void; // optional callback to close modal
+}
+
+export const GoogleLoginButton = ({ onSuccess }: GoogleLoginButtonProps) => {
     const { googleLogin } = useAuth();
 
     return (
         <GoogleLogin
-            onSuccess={(credentialResponse) => {
+            onSuccess={async (credentialResponse) => {
                 if (!credentialResponse.credential) return;
-                googleLogin(credentialResponse.credential);
+                await googleLogin(credentialResponse.credential);
+                onSuccess?.(); // close modal after login
             }}
             onError={() => {
                 console.error("Google Login Failed");
