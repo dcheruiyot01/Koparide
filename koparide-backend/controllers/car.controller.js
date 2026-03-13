@@ -148,13 +148,17 @@ module.exports = {
         }
     },
 
+    // controllers/carController.js
+
     /**
      * Upload insurance document (multer single file)
      */
     async uploadInsurance(req, res, next) {
         try {
             const { id } = req.params;
-            const insuranceUrl = req.file.path;
+            // req.file.filename is set by multer (if using disk storage with filename)
+            const filename = req.file.filename;
+            const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${filename}`;
 
             const car = await CarService.uploadInsurance(id, insuranceUrl);
 
@@ -167,6 +171,25 @@ module.exports = {
         }
     },
 
+    /**
+     * Upload Registration/LogBook document (multer single file)
+     */
+    async uploadRegistration(req, res, next) {
+        try {
+            const { id } = req.params;
+            const filename = req.file.filename;
+            const registrationUrl = `${process.env.BASE_URL}/uploads/cars/registration/${filename}`;
+
+            const car = await CarService.uploadRegistration(id, registrationUrl);
+
+            res.status(200).json({
+                message: 'Registration uploaded successfully',
+                car
+            });
+        } catch (err) {
+            next(err);
+        }
+    },
     /**
      * Approve car listing (admin only)
      */

@@ -16,6 +16,8 @@ export interface ApiCar {
     pricePerDay: string | number;
     location?: string;
     status?: string;
+    insurance_url: string | null;
+    logbook_url: string | null;
     imagesList?: string[];
     owner?: any;
     renter?: any;
@@ -43,6 +45,8 @@ export function normalizeCar(apiCar: ApiCar): HostCar {
             : apiCar.pricePerDay ?? 0,
         location: apiCar.location,
         status: apiCar.status,
+        logbook_url: apiCar.logbook_url,
+        insurance_url: apiCar.insurance_url,
         imagesList: apiCar.imagesList ?? [],
         owner: apiCar.owner,
         renter: apiCar.renter,

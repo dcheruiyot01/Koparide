@@ -43,6 +43,8 @@ app.use('/api/cars', carRoutes);
 app.use("/uploads/licenses", express.static(path.join(__dirname, "uploads/licenses")));
 app.use("/uploads/profiles", express.static(path.join(__dirname, "uploads/profiles")));
 app.use("/uploads/cars", express.static(path.join(__dirname, "uploads/cars")));
+app.use("/uploads/cars/insurance", express.static(path.join(__dirname, "uploads/cars/insurance")));
+app.use("/uploads/cars/registration", express.static(path.join(__dirname, "uploads/cars/registration")));
 
 // Centralized error handler (must be last)
 app.use(errorHandler);

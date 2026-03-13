@@ -43,6 +43,7 @@ export const MyListings = ({
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cars.map((car) => {
+                console.log('car', car.insurance_url);
                 // Safely determine the primary image
                 const images = car.imagesList ?? [];
                 const primaryImage =

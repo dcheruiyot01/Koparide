@@ -11,6 +11,8 @@ export interface Car {
     fuelType: string;
     mpg: string;
     location: string;
+    insurance_url: string | null;
+    logbook_url: string | null;
     transmission: string;
     cruiseControl: boolean;
     cc: number;

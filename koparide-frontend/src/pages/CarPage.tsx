@@ -51,6 +51,8 @@ interface Car {
     cruiseControl: boolean;
     cc: number;
     status: string;
+    logbook_url: string;
+    insurance_url: string;
     is_deleted: boolean;
     rented_to: number | null;
     createdAt: string;

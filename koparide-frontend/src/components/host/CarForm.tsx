@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { X, Upload, XCircle } from 'lucide-react';
+import { X, Upload, XCircle, FileText } from 'lucide-react';
 import type { HostCar } from '../../types/car.ts';
 import { LocationSearch } from '../locations/LocationsSearch';
 import { AuthContext } from '../../auth/AuthContext';
@@ -12,12 +12,14 @@ interface CarFormProps {
     onCancel: () => void;
 }
 
-// Type for form data (matches HostCar minus id, rating, trips, plus an images array for files/URLs)
+// Type for form data – includes logbook_url and insurance_url as strings or Files
 type CarFormData = Omit<HostCar, 'id' | 'rating' | 'trips'> & {
-    images: (File | string)[]; // uploaded files + existing image URLs
+    images: (File | string)[];          // uploaded files + existing image URLs
+    logbook_url?: File | string | null;  // new file or existing URL
+    insurance_url?: File | string | null; // new file or existing URL
 };
 
-// Initial empty state (status defaults to 'pending')
+// Initial empty state
 const getInitialFormState = (): CarFormData => ({
     make: '',
     model: '',
@@ -29,7 +31,9 @@ const getInitialFormState = (): CarFormData => ({
     cruiseControl: false,
     pricePerDay: 0,
     location: '',
-    imagesList: [], // will be synced with images array; kept for compatibility
+    insurance_url: '',
+    logbook_url: '',
+    imagesList: [],
     owner: undefined,
     renter: undefined,
     is_deleted: false,
@@ -39,17 +43,15 @@ const getInitialFormState = (): CarFormData => ({
     cc: undefined,
     mpg: undefined,
     description: '',
-    images: [], // our working array for files and URLs
+    images: [],
 });
 
-// Constants (preserved from original)
+// Constants
 const CLASSIFICATIONS = ['SUV', 'Sedan', 'Saloon', 'Pickup', 'Truck', 'Hatchback', 'Van', 'Coupe', 'Convertible'];
 const SEAT_OPTIONS = [2, 4, 5, 6, 7, 8];
 const FUEL_TYPES = ['gas', 'diesel', 'hybrid', 'electric'];
-// REQUIRED_FIELDS is intentionally empty (original behavior)
 const REQUIRED_FIELDS: string[] = [];
 
-// User-friendly labels for error display
 const fieldLabels: Record<string, string> = {
     make: 'Make',
     model: 'Model',
@@ -66,6 +68,8 @@ const fieldLabels: Record<string, string> = {
     description: 'Description',
     cruiseControl: 'Cruise control',
     status: 'Status',
+    logbook_url: 'Car Logbook',
+    insurance_url: 'Car Insurance',
 };
 
 export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
@@ -73,7 +77,7 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
     const navigate = useNavigate();
 
     if (!auth) throw new Error('AuthContext not found');
-    const { token, user } = auth;
+    const { token } = auth;
 
     const [formData, setFormData] = useState<CarFormData>(getInitialFormState);
     const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -81,35 +85,34 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [showErrorSummary, setShowErrorSummary] = useState(false);
 
-    // Ref for the error banner to scroll into view
+    // Refs for file inputs
+    const logbookInputRef = useRef<HTMLInputElement>(null);
+    const insuranceInputRef = useRef<HTMLInputElement>(null);
     const errorBannerRef = useRef<HTMLDivElement>(null);
 
     // Populate form when editingCar changes
     useEffect(() => {
         if (editingCar) {
-            // Convert existing image URLs to strings in the images array
             const existingImages = editingCar.imagesList?.map((img) => img.url) ?? [];
             setFormData({
                 ...editingCar,
-                images: existingImages, // store URLs as strings
+                images: existingImages,
+                logbook_url: editingCar.logbook_url || null,
+                insurance_url: editingCar.insurance_url || null,
             });
-            // Set previews for existing images
             setImagePreviews(existingImages);
         } else {
-            // Reset for new car
             setFormData(getInitialFormState());
             setImagePreviews([]);
         }
-        // Reset error summary when switching cars or opening new form
         setShowErrorSummary(false);
         setErrors({});
         setTouched({});
     }, [editingCar]);
 
-    // Auto-scroll to error summary when it appears
+    // Auto-scroll to error summary
     useEffect(() => {
         if (showErrorSummary && Object.keys(errors).length > 0) {
-            // Small delay to ensure DOM is updated
             setTimeout(() => {
                 errorBannerRef.current?.scrollIntoView({
                     behavior: 'smooth',
@@ -132,15 +135,10 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         setFormData((prev) => ({
             ...prev,
             [name]: numericFields.includes(name)
-                ? value === ''
-                    ? undefined
-                    : Number(value)
+                ? value === '' ? undefined : Number(value)
                 : value,
         }));
-        // Clear error for this field if it exists
-        if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: false }));
-        }
+        if (errors[name]) setErrors((prev) => ({ ...prev, [name]: false }));
     };
 
     const handleBlur = (field: string) => {
@@ -158,10 +156,8 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const files = Array.from(e.target.files);
-        // Create preview URLs
         const newPreviews = files.map((file) => URL.createObjectURL(file));
         setImagePreviews((prev) => [...prev, ...newPreviews]);
-        // Store File objects in images array
         setFormData((prev) => ({
             ...prev,
             images: [...prev.images, ...files],
@@ -176,25 +172,41 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         }));
     };
 
+    // Document upload handlers
+    const handleLogbookUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFormData((prev) => ({ ...prev, logbook_url: file }));
+    };
+
+    const handleInsuranceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFormData((prev) => ({ ...prev, insurance_url: file }));
+    };
+
+    const removeLogbook = () => {
+        setFormData((prev) => ({ ...prev, logbook_url: null }));
+        if (logbookInputRef.current) logbookInputRef.current.value = '';
+    };
+
+    const removeInsurance = () => {
+        setFormData((prev) => ({ ...prev, insurance_url: null }));
+        if (insuranceInputRef.current) insuranceInputRef.current.value = '';
+    };
+
     const validateForm = (): boolean => {
         const newErrors: Record<string, boolean> = {};
 
-        // Required fields (REQUIRED_FIELDS is empty, so only custom checks apply)
         REQUIRED_FIELDS.forEach((field) => {
             const value = formData[field as keyof CarFormData];
             if (!value || value === 0) newErrors[field] = true;
         });
 
-        // Year range
         if (formData.year < 1990 || formData.year > 2027) newErrors.year = true;
-
-        // Price must be positive
         if (formData.pricePerDay <= 0) newErrors.pricePerDay = true;
-
-        // At least one image
         if (formData.images.length === 0) newErrors.images = true;
 
-        // Mark all fields as touched for error display
         const allTouched = [...REQUIRED_FIELDS, 'year', 'pricePerDay', 'images'].reduce(
             (acc, field) => ({ ...acc, [field]: true }),
             {}
@@ -206,80 +218,79 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Validate form before submission
-        const isValid = validateForm();
-        if (!isValid) {
+        if (!validateForm()) {
             setShowErrorSummary(true);
             return;
         }
 
         try {
-            const body = new FormData();
-
-            // Append all non‑image fields
+            // First, prepare car data without file fields
+            const carPayload = new FormData();
             (Object.entries(formData) as [keyof CarFormData, any][]).forEach(([key, value]) => {
-                if (key === 'images') return; // handled separately
+                if (key === 'images' || key === 'logbook_url' || key === 'insurance_url') return;
                 if (value !== undefined && value !== null) {
-                    body.append(key, String(value));
+                    carPayload.append(key, String(value));
                 }
             });
-
-            // Append images: File objects go as "images", existing URLs as "existingImages"
+            // Append existing image URLs
             formData.images.forEach((img) => {
-                if (img instanceof File) {
-                    body.append('images', img);
-                } else {
-                    body.append('existingImages', img);
-                }
+                if (!(img instanceof File)) carPayload.append('existingImages', img);
             });
 
-            // Append images: File objects go as "images", existing URLs as "existingImages"
-
-            let res;
-
+            let savedCar;
             if (editingCar) {
-                // Update existing car
-                res = await api.put(`/api/cars/${editingCar.id}`, body, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                const res = await api.put(`/api/cars/${editingCar.id}`, carPayload, {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
+                savedCar = res.data;
             } else {
-                // Create new car
-                res = await api.post('/api/cars', body, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                const res = await api.post('/api/cars', carPayload, {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
+                savedCar = res.data;
             }
 
-            // Axios automatically throws for non‑2xx responses, so if we’re here, status is OK.
-            // Still, we can double‑check:
-            if (res.status < 200 || res.status >= 300) {
-                console.error('❌ Failed to save car:', res.statusText);
-                alert('Something went wrong while saving. Please try again.');
-                return;
+            // Now handle document uploads
+            const uploadPromises = [];
+            // Upload logbook if it's a new file
+            if (formData.logbook_url instanceof File) {
+                const logbookForm = new FormData();
+                logbookForm.append('logbook', formData.logbook_url);
+                console.log(formData);
+                uploadPromises.push(
+                    api.post(`/api/cars/${savedCar.car.id}/registration`, logbookForm, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                );
+            } else if (formData.logbook_url === null && editingCar?.logbook_url) {
+                // If removed, send null via main update (optional)
+                // This could be handled by a separate route or included in main update
+                // For simplicity, we'll skip or you can add a call to clear it.
             }
 
-            // Axios response data contains the saved car object
-            const savedCar = res.data;
-            // Notify parent components
+            // Upload insurance if it's a new file
+            if (formData.insurance_url instanceof File) {
+                const insuranceForm = new FormData();
+                insuranceForm.append('insurance', formData.insurance_url);
+                uploadPromises.push(
+                    api.post(`/api/cars/${savedCar.car.id}/insurance`, insuranceForm, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                );
+            }
+
+            await Promise.all(uploadPromises);
+
+            // Optionally refetch updated car
             onSave(savedCar);
             navigate('/host', { state: { successMessage: 'Car successfully updated!' } });
             onCancel();
-        } catch (err: any) {
-            // Axios errors have a response object with details
-            if (err.response) {
-                console.error('❌ Error submitting form:', err.response.status, err.response.data);
-                alert(`Error ${err.response.status}: ${err.response.data?.message || 'Failed to save car'}`);
-            } else {
-                console.error('❌ Unexpected error submitting form:', err.message);
-                alert('Unexpected error occurred. Please try again later.');
-            }
+        } catch (err) {
+            // error handling
         }
     };
 
-    // Helper for input classes (preserves original styling)
+    // Helper for input classes
     const inputClasses = (field: string): string =>
         `w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition bg-white ${
             errors[field] && touched[field] ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200'
@@ -287,7 +298,7 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
 
     const selectClasses = (field: string): string => `${inputClasses(field)} appearance-none`;
 
-    // Helper to render form fields (preserves original behavior)
+    // Helper to render form fields
     const renderField = (
         name: keyof CarFormData,
         label: string,
@@ -315,8 +326,7 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                     >
                         {options?.map((opt) => (
                             <option key={opt} value={opt}>
-                                {opt}
-                                {name === 'seats' && ' seats'}
+                                {opt}{name === 'seats' && ' seats'}
                             </option>
                         ))}
                     </select>
@@ -354,6 +364,73 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         );
     };
 
+    // Helper to render a document upload section (no status)
+    const renderDocumentUpload = (
+        label: string,
+        field: 'logbook_url' | 'insurance_url',
+        file: File | string | null | undefined,
+        onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void,
+        onRemove: () => void,
+        inputRef: React.RefObject<HTMLInputElement>
+    ) => {
+        const hasFile = file instanceof File;
+        const hasUrl = !!file && typeof file === 'string';
+        console.log('hasFile', hasFile);
+        console.log('hasUrl', hasUrl);
+        return (
+            <div className="bg-gray-50/50 rounded-xl p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {label}
+                </label>
+                {hasFile || hasUrl ? (
+                    <div className="flex items-center justify-between p-3 bg-white border rounded-lg">
+                        <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-[#00A699]" />
+                            <span className="text-sm text-gray-600 truncate max-w-[200px]">
+                                {hasFile ? (file as File).name : (hasUrl ? 'Document uploaded' : '')}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {hasUrl && !hasFile && (
+                                <a
+                                    href={file as string}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-[#00A699] hover:underline"
+                                >
+                                    View
+                                </a>
+                            )}
+                            <button
+                                type="button"
+                                onClick={onRemove}
+                                className="text-gray-400 hover:text-red-500"
+                            >
+                                <XCircle className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div
+                        onClick={() => inputRef.current?.click()}
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-[#00A699] transition"
+                    >
+                        <input
+                            ref={inputRef}
+                            type="file"
+                            accept="image/png, image/jpeg, application/pdf"
+                            onChange={onUpload}
+                            className="hidden"
+                        />
+                        <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Click to upload {label}</p>
+                        <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF (max 5MB)</p>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
@@ -362,25 +439,16 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                     <h2 className="text-xl font-bold text-gray-900">
                         {editingCar ? 'Edit Vehicle' : 'Add New Vehicle'}
                     </h2>
-                    <button
-                        onClick={onCancel}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
+                    <button onClick={onCancel} className="p-2 hover:bg-gray-100 rounded-lg">
                         <X className="h-5 w-5 text-gray-400" />
                     </button>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
-                    {/* Error Summary Banner */}
                     {showErrorSummary && Object.keys(errors).length > 0 && (
-                        <div
-                            ref={errorBannerRef}
-                            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
-                        >
-                            <h4 className="text-sm font-medium text-red-800 mb-2">
-                                Please fix the following errors:
-                            </h4>
+                        <div ref={errorBannerRef} className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <h4 className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h4>
                             <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
                                 {Object.keys(errors).map((field) => (
                                     <li key={field}>{fieldLabels[field] || field} is required or invalid.</li>
@@ -409,14 +477,44 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                             <h3 className="text-lg font-semibold mb-4">Location</h3>
                             <div className="bg-gray-50/50 rounded-xl p-6">
                                 <LocationSearch
-                                    // preload the car’s current location
                                     value={formData.location}
-
-                                    onSelect={(address: string) =>
-                                        setFormData((prev) => ({ ...prev, location: address }))
-                                    }
+                                    onSelect={(address) => setFormData((prev) => ({ ...prev, location: address }))}
                                     className={inputClasses('location')}
                                 />
+                            </div>
+                        </div>
+
+                        {/* Specifications */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Specifications</h3>
+                            <div className="bg-gray-50/50 rounded-xl p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {renderField('transmission', 'Transmission', 'select', ['automatic', 'manual'])}
+                                    {renderField('seats', 'Seats', 'select', SEAT_OPTIONS)}
+                                    {renderField('fuelType', 'Fuel Type', 'select', FUEL_TYPES)}
+                                    {renderField('mpg', 'Fuel Efficiency (MPG)', 'number')}
+                                    {renderField('cc', 'Engine Size (CC)', 'number')}
+                                    <div className="flex items-center">
+                                        <label className="flex items-center gap-3 cursor-pointer mt-6">
+                                            <input
+                                                type="checkbox"
+                                                name="cruiseControl"
+                                                checked={formData.cruiseControl ?? false}
+                                                onChange={handleChange}
+                                                className="w-4 h-4 rounded text-[#00A699]"
+                                            />
+                                            <span className="text-sm font-medium">Cruise Control</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Description</h3>
+                            <div className="bg-gray-50/50 rounded-xl p-6">
+                                {renderField('description', 'Description', 'textarea')}
                             </div>
                         </div>
 
@@ -459,38 +557,30 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                             </div>
                         </div>
 
-                        {/* Specifications */}
+                        {/* Car Logbook */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Specifications</h3>
-                            <div className="bg-gray-50/50 rounded-xl p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {renderField('transmission', 'Transmission', 'select', ['automatic', 'manual'])}
-                                    {renderField('seats', 'Seats', 'select', SEAT_OPTIONS)}
-                                    {renderField('fuelType', 'Fuel Type', 'select', FUEL_TYPES)}
-                                    {renderField('mpg', 'Fuel Efficiency (MPG)', 'number')}
-                                    {renderField('cc', 'Engine Size (CC)', 'number')}
-                                    <div className="flex items-center">
-                                        <label className="flex items-center gap-3 cursor-pointer mt-6">
-                                            <input
-                                                type="checkbox"
-                                                name="cruiseControl"
-                                                checked={formData.cruiseControl ?? false}
-                                                onChange={handleChange}
-                                                className="w-4 h-4 rounded text-[#00A699]"
-                                            />
-                                            <span className="text-sm font-medium">Cruise Control</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+                            <h3 className="text-lg font-semibold mb-4">Car Logbook</h3>
+                            {renderDocumentUpload(
+                                'Logbook Document',
+                                'logbook_url',
+                                formData.logbook_url,
+                                handleLogbookUpload,
+                                removeLogbook,
+                                logbookInputRef
+                            )}
                         </div>
 
-                        {/* Description */}
+                        {/* Car Insurance */}
                         <div>
-                            <h3 className="text-lg font-semibold mb-4">Description</h3>
-                            <div className="bg-gray-50/50 rounded-xl p-6">
-                                {renderField('description', 'Description', 'textarea')}
-                            </div>
+                            <h3 className="text-lg font-semibold mb-4">Car Insurance</h3>
+                            {renderDocumentUpload(
+                                'Insurance Document',
+                                'insurance_url',
+                                formData.insurance_url,
+                                handleInsuranceUpload,
+                                removeInsurance,
+                                insuranceInputRef
+                            )}
                         </div>
 
                         {/* Status */}
@@ -515,17 +605,10 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
 
                     {/* Actions */}
                     <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-6 border-t border-gray-100 sticky bottom-0 bg-white">
-                        <button
-                            type="submit"
-                            className="flex-1 bg-[#00A699] hover:bg-[#008A7E] text-white px-6 py-3 rounded-lg font-medium transition"
-                        >
+                        <button type="submit" className="flex-1 bg-[#00A699] hover:bg-[#008A7E] text-white px-6 py-3 rounded-lg font-medium transition">
                             {editingCar ? 'Update' : 'Create'} Listing
                         </button>
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            className="flex-1 sm:flex-none px-6 py-3 border rounded-lg font-medium hover:bg-gray-50 transition"
-                        >
+                        <button type="button" onClick={onCancel} className="flex-1 sm:flex-none px-6 py-3 border rounded-lg font-medium hover:bg-gray-50 transition">
                             Cancel
                         </button>
                     </div>

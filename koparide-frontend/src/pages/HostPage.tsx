@@ -51,8 +51,6 @@ export const HostPage = () => {
         userId: user?.id
     });
 
-    console.log('👤 [HostPage] Logged in user ID:', loggedInUserId);
-
     // Stats summary
     const stats = useMemo(() => {
         const total = cars.length;
@@ -69,20 +67,16 @@ export const HostPage = () => {
     }, [cars]);
 
     const handleAddNew = () => {
-        console.log('➕ [HostPage] Add new car clicked');
         setEditingCar(null);
         setShowForm(true);
     };
 
     const handleEdit = (car: Car) => {
-        console.log('✏️ [HostPage] Edit car clicked:', car.id, car.make, car.model);
         setEditingCar(car);
         setShowForm(true);
     };
 
     const handleDelete = async (carId: string | number) => {
-        console.log('🗑️ [HostPage] Delete car clicked:', carId);
-
         if (!window.confirm('Are you sure you want to delete this listing? It can be restored later if needed.')) {
             console.log('❌ [HostPage] Delete cancelled for car:', carId);
             return;
@@ -92,8 +86,6 @@ export const HostPage = () => {
         const carToDelete = cars.find(car => car.id === carId);
 
         try {
-            console.log('📡 [HostPage] Sending soft delete request for car:', carId);
-
             // Optimistic update - remove from UI immediately (or update status)
             setCars((prev) => {
                 const filtered = prev.filter((car) => car.id !== carId);
@@ -103,8 +95,6 @@ export const HostPage = () => {
 
             // Make API call to soft delete the car
             await api.delete(`/api/cars/${carId}`);
-
-            console.log('✅ [HostPage] Car successfully soft deleted from database:', carId);
 
             // You could show a success message with an "Undo" option
             // setSuccessMessage('Car listing deleted. <button>Undo</button>');
@@ -126,8 +116,6 @@ export const HostPage = () => {
     const handleSave = (
         carData: Omit<Car, 'id' | 'rating' | 'trips'> & { id?: string | number }
     ) => {
-        console.log('💾 [HostPage] Save car called:', carData.id ? 'Update' : 'Create', carData);
-
         if (carData.id) {
             // Update existing car in local state
             setCars((prev) => {
@@ -175,7 +163,6 @@ export const HostPage = () => {
                 setLoading(true);
                 setFetchError(null);
 
-                console.log('📡 [HostPage] Making API call to /api/cars');
                 const res = await api.get('/api/cars');
 
                 console.log('📥 [HostPage] API response received:', {
@@ -187,40 +174,27 @@ export const HostPage = () => {
 
                 const carsData = res.data?.data;
 
-                console.log('🔍 [HostPage] Raw carsData:', carsData);
-
                 if (!Array.isArray(carsData)) {
                     console.error('❌ [HostPage] Expected array but got:', carsData);
                     if (mounted) {
                         setCars([]);
-                        console.log('📦 [HostPage] Cars set to empty array due to invalid data');
                     }
                     return;
                 }
-
-                console.log('📊 [HostPage] Total cars from API:', carsData.length);
-
                 const filtered = carsData.filter((c: ApiCar) => {
                     const matches = String(c.ownerId) === String(loggedInUserId);
                     if (matches) {
-                        console.log('✅ [HostPage] Car matches user:', c.id, c.make, c.model);
                     }
                     return matches;
                 });
-
-                console.log('🎯 [HostPage] Filtered cars for user:', filtered.length);
-
                 // Normalize the filtered cars
                 const normalized = filtered.map((c: ApiCar) => {
                     const normalizedCar = normalizeCar(c);
-                    console.log('🔄 [HostPage] Normalized car:', normalizedCar.id, normalizedCar.make, normalizedCar.model);
                     return normalizedCar;
                 });
 
                 if (mounted) {
-                    setCars(normalized);
-                    console.log('📦 [HostPage] Cars state updated with', normalized.length, 'cars');
-                }
+                    setCars(normalized);}
             } catch (err) {
                 console.error('❌ [HostPage] Failed to fetch cars:', err);
                 if (mounted) {
@@ -234,8 +208,6 @@ export const HostPage = () => {
                 }
             }
         };
-
-        console.log('🚀 [HostPage] Fetch effect triggered for user:', loggedInUserId);
         fetchCars();
 
         return () => {
@@ -246,7 +218,6 @@ export const HostPage = () => {
 
     useEffect(() => {
         if (successMessage) {
-            console.log('✨ [HostPage] Success message displayed:', successMessage);
             const timer = setTimeout(() => {
                 setSuccessMessage(null);
                 navigate(location.pathname, { replace: true }); // clear router state

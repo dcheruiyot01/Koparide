@@ -43,7 +43,8 @@ const Car = sequelize.define('Car', {
     transmission: { type: DataTypes.STRING, allowNull: true },
     cruiseControl: { type: DataTypes.BOOLEAN, defaultValue: false },
     cc: { type: DataTypes.INTEGER, allowNull: true }, // engine capacity
-
+    insurance_url: { type: DataTypes.STRING, allowNull: true },
+    logbook_url: { type: DataTypes.STRING, allowNull: true },
     status: {
         type: DataTypes.STRING,
         allowNull: false,

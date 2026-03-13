@@ -90,13 +90,24 @@ module.exports = {
         });
     },
 
+    // services/CarService.js
+
     /**
-     * Upload insurance document
+     * Upload insurance document URL to car record
      */
-    async uploadInsurance(carId, insuranceUrl) {
+    async uploadInsurance(carId, insurance_url) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
-        return car.update({ insuranceUrl });
+        return car.update({ insurance_url }); // field name in Car model
+    },
+
+    /**
+     * Upload registration document URL to car record
+     */
+    async uploadRegistration(carId, logbook_url) {
+        const car = await Car.findByPk(carId);
+        if (!car) throw new NotFoundError('Car not found');
+        return car.update({ logbook_url }); // field name in Car model
     },
 
     async approveCar(carId) {
@@ -130,7 +141,6 @@ module.exports = {
                 { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email'] }
             ]
         });
-
         return {
             data: rows,
             meta: { total: count, page, limit }
