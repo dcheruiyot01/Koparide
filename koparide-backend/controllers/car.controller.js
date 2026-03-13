@@ -7,7 +7,6 @@
  */
 
 const CarService = require('../services/car.service');
-const uploadImages = require('../services/upload.service');
 const MailService = require('../services/mail.service'); // notification emails
 
 module.exports = {

@@ -45,7 +45,7 @@ export const LocationSearch = ({
                 // Only create autocomplete element once
                 if (container.children.length === 0) {
                     const autocompleteEl = new PlaceAutocompleteElement();
-                    autocompleteEl.setAttribute("placeholder", "Enter pickup location");
+                    autocompleteEl.setAttribute("placeholder", "Enter location");
                     autocompleteEl.setAttribute("country", "KE");
 
                     // NEW: preload value if provided

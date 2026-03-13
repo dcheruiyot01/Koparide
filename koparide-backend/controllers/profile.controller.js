@@ -6,9 +6,9 @@ const Profile = require('../models/profile');
  * Get the authenticated user's profile
  */
 exports.getProfile = async (req, res) => {
+
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
-
         if (!profile) {
             return res.status(404).json({ error: 'Profile not found' });
         }
@@ -27,7 +27,7 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
-
+        console.log('profile', profile);
         if (!profile) {
             return res.status(404).json({ error: 'Profile not found' });
         }

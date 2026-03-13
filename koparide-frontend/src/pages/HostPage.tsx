@@ -80,17 +80,46 @@ export const HostPage = () => {
         setShowForm(true);
     };
 
-    const handleDelete = (carId: string | number) => {
+    const handleDelete = async (carId: string | number) => {
         console.log('🗑️ [HostPage] Delete car clicked:', carId);
-        if (window.confirm('Are you sure you want to delete this listing?')) {
-            console.log('✅ [HostPage] Delete confirmed for car:', carId);
+
+        if (!window.confirm('Are you sure you want to delete this listing? It can be restored later if needed.')) {
+            console.log('❌ [HostPage] Delete cancelled for car:', carId);
+            return;
+        }
+
+        // Store the car being deleted for potential rollback
+        const carToDelete = cars.find(car => car.id === carId);
+
+        try {
+            console.log('📡 [HostPage] Sending soft delete request for car:', carId);
+
+            // Optimistic update - remove from UI immediately (or update status)
             setCars((prev) => {
                 const filtered = prev.filter((car) => car.id !== carId);
-                console.log('📦 [HostPage] Cars after delete:', filtered.length);
+                console.log('📦 [HostPage] Cars after optimistic delete:', filtered.length);
                 return filtered;
             });
-        } else {
-            console.log('❌ [HostPage] Delete cancelled for car:', carId);
+
+            // Make API call to soft delete the car
+            await api.delete(`/api/cars/${carId}`);
+
+            console.log('✅ [HostPage] Car successfully soft deleted from database:', carId);
+
+            // You could show a success message with an "Undo" option
+            // setSuccessMessage('Car listing deleted. <button>Undo</button>');
+
+        } catch (error) {
+            console.error('❌ [HostPage] Failed to delete car:', error);
+
+            // Rollback the optimistic update if the API call fails
+            if (carToDelete) {
+                setCars((prev) => [carToDelete, ...prev]);
+                console.log('🔄 [HostPage] Rolled back delete for car:', carId);
+            }
+
+            // Show error message to user
+            alert('Failed to delete the car listing. Please try again.');
         }
     };
 
