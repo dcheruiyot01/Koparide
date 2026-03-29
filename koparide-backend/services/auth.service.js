@@ -77,8 +77,8 @@ module.exports = {
     },
 
     /* -------------------------------------------------------
-       LOGIN (Access + Refresh Tokens)
-    -------------------------------------------------------- */
+    LOGIN (Access + Refresh Tokens)
+ -------------------------------------------------------- */
     async login({ email, password }) {
         const user = await User.findOne({ where: { email } });
         if (!user) {
@@ -100,35 +100,28 @@ module.exports = {
             throw error;
         }
 
-        // Create refresh token
+        // Generate access token (THIS WAS MISSING!)
+        const accessToken = signAccessToken(user.id);
+
+        // Generate refresh token
         const refreshToken = generateRefreshToken();
-        const hashedRefresh = await hashToken(refreshToken);
+        const hashedRefresh = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
         user.refreshToken = hashedRefresh;
         user.refreshTokenExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await user.save();
 
-        // Create access token
-        const accessToken = signAccessToken(user.id);
-
+        // Return both tokens
         return {
             user: toSafeUser(user),
-            accessToken,
-            refreshToken
+            accessToken,      // Now defined!
+            refreshToken      // Send plain token, not hashed
         };
     },
 
     /* -------------------------------------------------------
-           GOOGLE OAuth LOGIN
-     -------------------------------------------------------- */
-    /**
-     * Google OAuth Login
-     *
-     * Flow:
-     *  - Verify Google ID token
-     *  - Find or create user
-     *  - Issue access + refresh tokens
-     */
+       GOOGLE OAuth LOGIN
+    -------------------------------------------------------- */
     async googleOAuth(idToken) {
         // 1. Verify token with Google
         const ticket = await client.verifyIdToken({
@@ -149,7 +142,7 @@ module.exports = {
             if (existing) {
                 existing.googleId = googleId;
                 existing.authProvider = 'google';
-                existing.isVerified = true; // <-- REQUIRED
+                existing.isVerified = true;
                 user = await existing.save();
             } else {
                 user = await User.create({
@@ -157,67 +150,91 @@ module.exports = {
                     email,
                     googleId,
                     authProvider: 'google',
-                    isVerified: true // Google already verified email
+                    isVerified: true
                 });
             }
         }
 
-        // 3. Issue refresh token
+        // Generate access token (THIS WAS MISSING!)
+        const accessToken = signAccessToken(user.id);
+
+        // Generate refresh token
         const refreshToken = generateRefreshToken();
-        const hashedRefresh = await hashToken(refreshToken);
+        const hashedRefresh = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
         user.refreshToken = hashedRefresh;
         user.refreshTokenExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await user.save();
 
-        // 4. Issue access token
-        const accessToken = signAccessToken(user.id);
-
+        // Return both tokens
         return {
             user: toSafeUser(user),
-            accessToken,
-            refreshToken
+            accessToken,      // Now defined!
+            refreshToken      // Send plain token, not hashed
         };
     },
 
     /* -------------------------------------------------------
-       REFRESH ACCESS TOKEN
-    -------------------------------------------------------- */
+   REFRESH ACCESS TOKEN (FIXED VERSION)
+-------------------------------------------------------- */
     async refresh(refreshToken) {
+        console.log('=== REFRESH DEBUG ===');
+        console.log('1. Received refresh token:', refreshToken ? 'Present' : 'Missing');
+
         if (!refreshToken) {
             const error = new Error('No refresh token provided');
             error.status = 401;
             throw error;
         }
 
-        // Find user with a stored refresh token
+        // Hash the incoming token to compare with stored hashes
+        const hashedIncomingToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+        console.log('2. Hashed incoming token:', hashedIncomingToken.substring(0, 20) + '...');
+
+        // Find user by the hashed token (direct lookup!)
         const user = await User.findOne({
-            where: { refreshToken: { [Op.ne]: null } }
+            where: { refreshToken: hashedIncomingToken }
         });
 
+        console.log('3. User found by token?', !!user);
+
         if (!user) {
+            console.log('4. No user found with that token');
             const error = new Error('Invalid refresh token');
             error.status = 401;
             throw error;
         }
 
-        // Compare raw token with hashed DB version
-        const isValid = await compareToken(refreshToken, user.refreshToken);
-        if (!isValid) {
-            const error = new Error('Invalid refresh token');
-            error.status = 401;
-            throw error;
-        }
+        console.log('5. User ID:', user.id);
+        console.log('6. Token expires:', user.refreshTokenExpires);
+        console.log('7. Current time:', new Date());
 
         // Check expiration
         if (user.refreshTokenExpires < Date.now()) {
+            console.log('8. Token expired');
             const error = new Error('Refresh token expired');
             error.status = 401;
             throw error;
         }
 
-        // Issue new access token
-        return signAccessToken(user.id);
+        console.log('9. Token valid, issuing new access token');
+
+        // Optional: Rotate refresh token (security best practice)
+        const newRefreshToken = generateRefreshToken(); // Use the imported function
+
+        const hashedNewRefresh = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+
+        user.refreshToken = hashedNewRefresh;
+        user.refreshTokenExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await user.save();
+
+        console.log('10. Refresh token rotated');
+
+        // Return both tokens
+        return {
+            accessToken: signAccessToken(user.id),
+            refreshToken: newRefreshToken // Send new refresh token to client
+        };
     },
 
     /* -------------------------------------------------------

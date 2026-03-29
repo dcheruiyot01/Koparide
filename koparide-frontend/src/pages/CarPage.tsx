@@ -6,67 +6,6 @@ import { Footer } from "../layout/Footer";
 import { LocationSearch } from "../components/locations/LocationsSearch";
 import api from "../api/axios";
 
-// ==================== TYPES ====================
-
-/**
- * Car image interface matching API response
- */
-interface CarImage {
-    id: number;
-    carId: number;
-    url: string;
-    altText: string;
-    isPrimary: boolean;
-    position: number;
-    createdAt: string;
-    updatedAt: string;
-}
-
-/**
- * Owner/Renter interface
- */
-interface User {
-    id: number;
-    name: string;
-    email: string;
-    createdAt: string;
-    defaultProfile?: string;
-}
-
-/**
- * Complete car interface matching API response
- */
-interface Car {
-    id: number;
-    ownerId: number;
-    make: string;
-    model: string;
-    year: number;
-    pricePerDay: string;
-    classification: string;
-    seats: number;
-    fuelType: string;
-    mpg: string;
-    transmission: string;
-    cruiseControl: boolean;
-    cc: number;
-    status: string;
-    logbook_url: string;
-    insurance_url: string;
-    is_deleted: boolean;
-    rented_to: number | null;
-    createdAt: string;
-    updatedAt: string;
-    imagesList: CarImage[];
-    owner: User;
-    renter: User | null;
-    // Optional fields that might be added
-    rating?: number;
-    trips?: number;
-    class?: string;
-    classNote?: string;
-}
-
 // ==================== CONSTANTS ====================
 
 /** Default profile image fallback */
@@ -809,17 +748,17 @@ export const CarPage: React.FC = () => {
                                 <h1 className="text-3xl font-bold text-gray-900">
                                     {car.year} {car.make} {car.model}
                                 </h1>
-                                {car.rating && car.rating > 0 && (
-                                    <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
-                                        <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                                        <span className="font-semibold">{car.rating.toFixed(1)}</span>
-                                        {car.trips && (
-                                            <span className="text-gray-500 text-sm ml-1">
-                                                ({car.trips} trips)
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
+                                {/*{car.rating && car.rating > 0 && (*/}
+                                {/*    <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">*/}
+                                {/*        <Star className="h-4 w-4 text-yellow-500 fill-current" />*/}
+                                {/*        <span className="font-semibold">{car.rating.toFixed(1)}</span>*/}
+                                {/*        {car.trips && (*/}
+                                {/*            <span className="text-gray-500 text-sm ml-1">*/}
+                                {/*                ({car.trips} trips) */}
+                                {/*            </span>*/}
+                                {/*        )}*/}
+                                {/*    </div>*/}
+                                {/*)}*/}
                             </div>
 
                             {/* Vehicle Features */}
@@ -845,11 +784,6 @@ export const CarPage: React.FC = () => {
                                         year: 'numeric'
                                     })}
                                     </p>
-                                    {car.rating && (
-                                        <p className="text-sm text-gray-600">
-                                            ⭐ {car.rating.toFixed(1)} Host rating
-                                        </p>
-                                    )}
                                 </div>
                             </div>
 

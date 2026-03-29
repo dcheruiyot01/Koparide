@@ -152,10 +152,18 @@ module.exports = {
   async refresh(req, res, next) {
     try {
       const refreshToken = req.cookies.refreshToken;
-      const newAccessToken = await AuthService.refresh(refreshToken);
+      const result = await AuthService.refresh(refreshToken);
+
+      // Set the new refresh token cookie
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000
+      });
 
       return res.status(200).json({
-        token: newAccessToken
+        token: result.accessToken // Send only access token in response body
       });
     } catch (err) {
       next(err);

@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
 import { Login } from "./pages/auth/user/Login.tsx";
 import { Register } from "./pages/auth/user/Register.tsx";
@@ -13,7 +15,10 @@ import { HostPage } from "./pages/HostPage"
 import { CarPage } from "./pages/CarPage"
 import { CarsPage } from "./pages/CarsPage.tsx"
 import { MessagesNotificationsPage } from "./pages/MessagesPage"
-import {ReservationPage} from "./pages/ReservationsPage";
+import { ReservationPage } from "./pages/ReservationsPage";
+import { BookingConfirmation } from "./pages/BookingConfirmation";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 /**
  * Protects routes that require authentication.
@@ -30,55 +35,67 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 export const App = () => {
     return (
         <BrowserRouter>
-            <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<HomePage/>} />
-                <Route path="/cars" element={<CarsPage/>} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password/:token" element={<ResetPassword />} />
-                <Route path="/verify-email" element={<VerifyEmailRequest />} />
-                <Route path="/verify-email/:token" element={<VerifyEmail />} />
+            <Elements stripe={stripePromise}>
+                <Routes>
+                    {/* Public routes */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/cars" element={<CarsPage />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
+                    <Route path="/verify-email" element={<VerifyEmailRequest />} />
+                    <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
-                {/*-- protected routes --*/}
-                <Route
-                    path="/profile"
-                    element={
-                    <ProtectedRoute>
-                        <ProfileHome />
-                    </ProtectedRoute> } />
-                <Route
-                    path="/messages"
-                    element={
-                    <ProtectedRoute>
-                        <MessagesNotificationsPage />
-                    </ProtectedRoute> } />
-                <Route
-                    path="/host"
-                    element={
-                        <ProtectedRoute>
-                            <HostPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/cars/:id"
-                    element={
-                        <ProtectedRoute>
-                            <CarPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/cars/:id/reservations"
-                    element={
-                        <ProtectedRoute>
-                            <ReservationPage />
-                        </ProtectedRoute>
-                    }
-                />
-            </Routes>
+                    {/* Car detail page - note: this should be public if users can view cars without logging in */}
+                    <Route path="/cars/:id" element={<CarPage />} />
+
+                    {/* Reservation page - needs Stripe AND authentication */}
+                    <Route
+                        path="/cars/:id/reservations"
+                        element={
+                            <ProtectedRoute>
+                                <ReservationPage />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/bookings/confirmation"
+                        element={
+                            <ProtectedRoute>
+                                <BookingConfirmation />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Protected routes */}
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProtectedRoute>
+                                <ProfileHome />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/messages"
+                        element={
+                            <ProtectedRoute>
+                                <MessagesNotificationsPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/host"
+                        element={
+                            <ProtectedRoute>
+                                <HostPage />
+                            </ProtectedRoute>
+                        }
+                    />
+                </Routes>
+            </Elements>
         </BrowserRouter>
     );
 };

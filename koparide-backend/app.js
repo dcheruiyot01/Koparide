@@ -11,6 +11,8 @@ const compression = require('compression');
 const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
 const carRoutes = require('./routes/car.routes');
+const reservationRoutes = require('./routes/reservation.routes');
+const paymentRoutes = require('./routes/payment.routes');
 const errorHandler = require('./middleware/error.middleware');
 
 const app = express();
@@ -86,6 +88,8 @@ app.use('/uploads/cars/registration', express.static(path.join(__dirname, 'uploa
 app.use('/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/cars', carRoutes);
+app.use('/api/reservations', reservationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });

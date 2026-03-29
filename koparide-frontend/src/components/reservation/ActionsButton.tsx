@@ -20,21 +20,14 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
         <div className="space-y-3">
             <button
                 onClick={onConfirm}
-                disabled={!canProceed || processing}
+                disabled={processing}   // only disable while processing
                 className={`w-full py-3 rounded-lg font-semibold transition ${
-                    canProceed && !processing
-                        ? 'bg-[#00A699] hover:bg-[#007A6E] text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    processing
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#00A699] hover:bg-[#007A6E] text-white'
                 }`}
             >
-                {processing ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        Processing...
-                    </span>
-                ) : (
-                    'Confirm and Pay'
-                )}
+                {processing ? 'Processing...' : 'Confirm and Pay'}
             </button>
 
             <button

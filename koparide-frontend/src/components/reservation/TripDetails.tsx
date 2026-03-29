@@ -7,6 +7,7 @@ interface TripDetailsProps {
     licenseExpired: boolean;
     licenseAcknowledged: boolean;
     onLicenseAcknowledge: (checked: boolean) => void;
+    error?: boolean;
 }
 
 const formatDisplayDate = (dateString: string): string => {
@@ -28,6 +29,7 @@ export const TripDetails: React.FC<TripDetailsProps> = ({
                                                             licenseExpired,
                                                             licenseAcknowledged,
                                                             onLicenseAcknowledge,
+                                                            error,
                                                         }) => {
     return (
         <div className="bg-white rounded-xl shadow-sm p-5">
@@ -62,13 +64,26 @@ export const TripDetails: React.FC<TripDetailsProps> = ({
 
             {/* License warning */}
             {licenseExpired && (
-                <div className="mt-4 flex items-start gap-3 bg-yellow-50 border-l-4 border-yellow-300 p-3 rounded">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div
+                    id="license-section"
+                    className={`mt-4 flex items-start gap-3 border-l-4 p-3 rounded ${
+                        error
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-yellow-300 bg-yellow-50'
+                    }`}
+                >
+                    <AlertCircle className={`h-5 w-5 ${
+                        error ? 'text-red-600' : 'text-yellow-600'
+                    } mt-0.5 flex-shrink-0`} />
                     <div className="flex-1">
-                        <p className="text-sm font-semibold text-yellow-800">
+                        <p className={`text-sm font-semibold ${
+                            error ? 'text-red-800' : 'text-yellow-800'
+                        }`}>
                             Your driver's license has expired
                         </p>
-                        <p className="text-sm text-yellow-700">
+                        <p className={`text-sm ${
+                            error ? 'text-red-700' : 'text-yellow-700'
+                        }`}>
                             Update your license before your trip starts to avoid cancellation.
                         </p>
                         <label className="flex items-center gap-2 mt-2 text-sm">
@@ -76,12 +91,19 @@ export const TripDetails: React.FC<TripDetailsProps> = ({
                                 type="checkbox"
                                 checked={licenseAcknowledged}
                                 onChange={(e) => onLicenseAcknowledge(e.target.checked)}
-                                className="rounded text-[#00A699] focus:ring-[#00A699]"
+                                className={`rounded focus:ring-[#00A699] ${
+                                    error ? 'border-red-500' : ''
+                                }`}
                             />
-                            <span className="text-yellow-700">
+                            <span className={error ? 'text-red-700' : 'text-yellow-700'}>
                                 I understand and will update my license
                             </span>
                         </label>
+                        {error && !licenseAcknowledged && (
+                            <p className="text-xs text-red-600 mt-1">
+                                You must acknowledge this before proceeding.
+                            </p>
+                        )}
                     </div>
                 </div>
             )}

@@ -137,8 +137,8 @@ module.exports = {
             limit,
             include: [
                 { model: require('../models/CarImage'), as: 'imagesList' },
-                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email'] },
-                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email'] }
+                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email', 'createdAt'] },
+                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email', 'createdAt'] },
             ]
         });
         return {
@@ -175,8 +175,8 @@ module.exports = {
         const car = await Car.findByPk(id, {
             include: [
                 { model: require('../models/CarImage'), as: 'imagesList' },
-                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email'] },
-                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email'] }
+                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email','createdAt'] },
+                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email','createdAt'] }
             ]
         });
 
