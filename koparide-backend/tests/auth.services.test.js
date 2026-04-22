@@ -132,24 +132,38 @@ describe('AuthService', () => {
     /**
      * REFRESH TOKEN
      */
-    describe('refresh', () => {
-        it('✅ should issue new access token if refresh token valid', async () => {
-            const mockUser = {
-                id: 1,
-                refreshToken: 'hashed-refresh-token',
-                refreshTokenExpires: new Date(Date.now() + 10000)
-            };
-            User.findOne.mockResolvedValue(mockUser);
-            compareToken.mockResolvedValue(true);
+    test('POST /auth/refresh → issues new access and refresh tokens', async () => {
+        const bcrypt = require('bcryptjs');
+        const hashed = await bcrypt.hash('password123', 10);
 
-            const result = await AuthService.refresh('refresh-token');
-            expect(result).toBe('access-token');
+        // Create a verified user
+        await User.create({
+            name: 'Daniel',
+            email: 'daniel@example.com',
+            password: hashed,
+            isVerified: true
         });
 
-        it('❌ should throw error if no token provided', async () => {
-            await expect(AuthService.refresh(null)).rejects.toThrow('No refresh token provided');
-        });
+        // Login to get refresh token
+        const loginRes = await request(app)
+            .post('/auth/login')
+            .send({ email: 'daniel@example.com', password: 'password123' });
+
+        const refreshToken = loginRes.body.refreshToken;
+        expect(refreshToken).toBeDefined();
+
+        // Call refresh endpoint
+        const refreshRes = await request(app)
+            .post('/auth/refresh')
+            .send({ refreshToken });
+
+        expect(refreshRes.statusCode).toBe(200);
+        expect(refreshRes.body).toHaveProperty('accessToken');
+        expect(refreshRes.body).toHaveProperty('refreshToken');
+        expect(typeof refreshRes.body.accessToken).toBe('string');
+        expect(typeof refreshRes.body.refreshToken).toBe('string');
     });
+
 
     /**
      * LOGOUT
