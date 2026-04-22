@@ -12,12 +12,11 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
-
+import { useNavigate } from "react-router-dom";
 export const Register = ({ onSuccess }: { onSuccess?: () => void }) => {
     const { register } = useAuth();
     const navigate = useNavigate();
-
+    const { openAuthModal, closeAuthModal } = useAuth();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -97,9 +96,16 @@ export const Register = ({ onSuccess }: { onSuccess?: () => void }) => {
                 <Box mt={3}>
                     <GoogleLoginButton />
                 </Box>
-
+                {/* 🔥 Back to Login → open Login modal */}
                 <Box mt={3} textAlign="center">
-                    <MuiLink component={Link} to="/login" underline="hover">
+                    <MuiLink
+                        underline="hover"
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => {
+                            closeAuthModal();       // close Forgot Password modal/page
+                            openAuthModal("login"); // open Login modal
+                        }}
+                    >
                         Already have an account? Login
                     </MuiLink>
                 </Box>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from "react"
+// src/layout/Navbar.tsx (or wherever you keep it)
+import React, { useEffect, useState, useRef } from "react";
 import {
     Car,
     Menu,
@@ -7,77 +8,82 @@ import {
     LogOut,
     MessageSquare,
     Briefcase
-} from "lucide-react"
-import { useAuth } from "../auth/useAuth"
-import { RegisterModal } from "../pages/auth/user/RegisterModal.tsx"
-import { LoginModal } from "../pages/auth/user/LoginModal.tsx"
+} from "lucide-react";
 
+import { useAuth } from "../auth/useAuth";
+import { RegisterModal } from "../pages/auth/user/RegisterModal";
+import { LoginModal } from "../pages/auth/user/LoginModal";
+
+/**
+ * Navbar:
+ * - Uses global auth modal from AuthContext
+ * - No local login/register modal state
+ * - "Sign in" → opens login modal
+ * - "Sign up" → opens register modal
+ */
 export const Navbar = () => {
-    const [isScrolled, setIsScrolled] = useState(false)
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-    const [isProfileOpen, setIsProfileOpen] = useState(false)
-    const dropdownRef = useRef(null)
-    const [registerOpen, setRegisterOpen] = useState(false)
-    const [loginOpen, setLoginOpen] = useState(false)
-    const { user, logout } = useAuth()
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-    // Handle scroll effect
-    useEffect(() => {
-        const handleScroll = () => setIsScrolled(window.scrollY > 10)
-        window.addEventListener("scroll", handleScroll)
-        return () => window.removeEventListener("scroll", handleScroll)
-    }, [])
+    const {
+        user,
+        logout,
+        authModalOpen,
+        authModalType,
+        openAuthModal,
+        closeAuthModal
+    } = useAuth();
 
-    // Close dropdown when clicking outside
+    // Scroll effect
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsProfileOpen(false)
+        const handleScroll = () => setIsScrolled(window.scrollY > 10);
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    // Close profile dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsProfileOpen(false);
             }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Prevent scroll when mobile menu is open
     useEffect(() => {
         if (isMobileMenuOpen) {
-            document.body.style.overflow = 'hidden'
+            document.body.style.overflow = "hidden";
         } else {
-            document.body.style.overflow = 'unset'
+            document.body.style.overflow = "unset";
         }
         return () => {
-            document.body.style.overflow = 'unset'
-        }
-    }, [isMobileMenuOpen])
+            document.body.style.overflow = "unset";
+        };
+    }, [isMobileMenuOpen]);
 
-    // Close mobile menu on link click
-    const closeMobileMenu = () => {
-        setIsMobileMenuOpen(false)
-    }
+    const closeMobileMenu = () => setIsMobileMenuOpen(false);
+    const closeProfileDropdown = () => setIsProfileOpen(false);
 
-    // Close profile dropdown
-    const closeProfileDropdown = () => {
-        setIsProfileOpen(false)
-    }
-
-    // Handle logout
     const handleLogout = () => {
-        logout()
-        closeProfileDropdown()
-        closeMobileMenu()
-    }
+        logout();
+        closeProfileDropdown();
+        closeMobileMenu();
+    };
 
-    // Get user initials for avatar
     const getUserInitials = () => {
-        if (!user?.name) return "U"
+        if (!user?.name) return "U";
         return user.name
-            .split(' ')
+            .split(" ")
             .map(word => word[0])
-            .join('')
+            .join("")
             .toUpperCase()
-            .slice(0, 2)
-    }
+            .slice(0, 2);
+    };
 
     return (
         <nav
@@ -87,7 +93,6 @@ export const Navbar = () => {
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center">
-
                     {/* Logo */}
                     <div className="flex items-center cursor-pointer">
                         <Car
@@ -100,7 +105,7 @@ export const Navbar = () => {
                                 isScrolled ? "text-gray-900" : "text-white"
                             }`}
                         >
-                            <a href="/" className="no-underline text-inherit"  >
+                            <a href="/" className="no-underline text-inherit">
                                 WheelAway {`{Kopa Ride}`}
                             </a>
                         </span>
@@ -111,7 +116,8 @@ export const Navbar = () => {
                         <a
                             href="/cars"
                             className={`px-3 py-1.5 rounded-full border text-sm font-medium transition no-underline hover:no-underline ${
-                                isScrolled ? "text-gray-700" : "text-white"}`}
+                                isScrolled ? "text-gray-700" : "text-white"
+                            }`}
                         >
                             Explore
                         </a>
@@ -135,7 +141,7 @@ export const Navbar = () => {
                         </a>
                     </div>
 
-                    {/* Auth Section */}
+                    {/* Auth Section (Desktop) */}
                     <div className="hidden md:flex items-center space-x-4">
                         {user ? (
                             <div className="relative" ref={dropdownRef}>
@@ -163,7 +169,6 @@ export const Navbar = () => {
                                             </span>
                                         )}
                                     </div>
-
                                 </button>
 
                                 {/* Desktop Dropdown Menu */}
@@ -171,30 +176,14 @@ export const Navbar = () => {
                                     <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right overflow-hidden">
                                         <div className="px-4 py-3 border-b border-gray-100">
                                             <p className="text-sm font-semibold text-gray-900">
-                                                {user.name || 'User'}
+                                                {user.name || "User"}
                                             </p>
                                             <p className="text-xs text-gray-500 truncate">
-                                                {user.email || 'user@example.com'}
+                                                {user.email || "user@example.com"}
                                             </p>
                                         </div>
 
                                         <div className="py-1">
-                                            {/*<a*/}
-                                            {/*    href="#trips"*/}
-                                            {/*    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"*/}
-                                            {/*    onClick={closeProfileDropdown}*/}
-                                            {/*>*/}
-                                            {/*    <Calendar className="h-4 w-4 mr-3 text-gray-400" />*/}
-                                            {/*    Trips*/}
-                                            {/*</a>*/}
-                                            {/*<a*/}
-                                            {/*    href="#favorites"*/}
-                                            {/*    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"*/}
-                                            {/*    onClick={closeProfileDropdown}*/}
-                                            {/*>*/}
-                                            {/*    <Heart className="h-4 w-4 mr-3 text-gray-400" />*/}
-                                            {/*    Favorites*/}
-                                            {/*</a>*/}
                                             <a
                                                 href="/messages"
                                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
@@ -229,28 +218,29 @@ export const Navbar = () => {
                                                 <LogOut className="h-4 w-4 mr-3" />
                                                 Log out
                                             </button>
-
                                         </div>
                                     </div>
                                 )}
                             </div>
                         ) : (
                             <>
-                                <a
-                                    onClick={() => setLoginOpen(true)}
-                                    className={`px-3 py-1.5 rounded-full text-sm font-medium no-underline hover:no-underline hover:opacity-80 transition ${
-                                        isScrolled ? "text-gray-700" : "text-white"
-                                    }`}
+                                {/* Open LOGIN modal */}
+                                <button
+                                    type="button"
+                                    onClick={() => openAuthModal("login")}
+                                    className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm no-underline hover:no-underline"
                                 >
                                     Sign in
-                                </a>
+                                </button>
 
-                                <a
-                                    onClick={() => setRegisterOpen(true)}
+                                {/* Open REGISTER modal */}
+                                <button
+                                    type="button"
+                                    onClick={() => openAuthModal("register")}
                                     className="bg-[#00A699] hover:bg-[#007A6E] text-white px-5 py-2 rounded-full text-sm font-medium transition shadow-sm no-underline hover:no-underline"
                                 >
                                     Sign up
-                                </a>
+                                </button>
                             </>
                         )}
                     </div>
@@ -296,28 +286,15 @@ export const Navbar = () => {
                                 </div>
 
                                 <div>
-                                    <p className="font-semibold text-gray-900">{user.name || 'User'}</p>
-                                    <p className="text-xs text-gray-500">{user.email || ''}</p>
+                                    <p className="font-semibold text-gray-900">
+                                        {user.name || "User"}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {user.email || ""}
+                                    </p>
                                 </div>
                             </div>
 
-                            {/* Mobile Menu Links with Icons */}
-                            {/*<a*/}
-                            {/*    href="#trips"*/}
-                            {/*    className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"*/}
-                            {/*    onClick={closeMobileMenu}*/}
-                            {/*>*/}
-                            {/*    <Calendar className="h-5 w-5 mr-3 text-gray-400" />*/}
-                            {/*    Trips*/}
-                            {/*</a>*/}
-                            {/*<a*/}
-                            {/*    href="#favorites"*/}
-                            {/*    className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"*/}
-                            {/*    onClick={closeMobileMenu}*/}
-                            {/*>*/}
-                            {/*    <Heart className="h-5 w-5 mr-3 text-gray-400" />*/}
-                            {/*    Favorites*/}
-                            {/*</a>*/}
                             <a
                                 href="/messages"
                                 className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
@@ -335,7 +312,7 @@ export const Navbar = () => {
                                 Host mode
                             </a>
 
-                            <div className="border-t border-gray-100 my-2"></div>
+                            <div className="border-t border-gray-100 my-2" />
 
                             <a
                                 href="/profile"
@@ -380,28 +357,42 @@ export const Navbar = () => {
                             </a>
 
                             <div className="flex flex-col space-y-3 pt-4">
-                                <a
-                                    href="/login"
-                                    className="text-gray-700 font-medium text-left py-2 no-underline hover:no-underline"
-                                    onClick={closeMobileMenu}
+                                {/* Mobile Sign in → open LOGIN modal */}
+                                <button
+                                    type="button"
+                                    className="text-gray-700 font-medium text-left py-2"
+                                    onClick={() => {
+                                        closeMobileMenu();
+                                        openAuthModal("login");
+                                    }}
                                 >
                                     Sign in
-                                </a>
+                                </button>
 
-                                <a
-                                    href="/signup"
-                                    className="bg-[#00A699] text-white px-5 py-3 rounded-full text-sm font-medium text-center no-underline hover:no-underline"
-                                    onClick={closeMobileMenu}
+                                {/* Mobile Sign up → open REGISTER modal */}
+                                <button
+                                    type="button"
+                                    className="bg-[#00A699] text-white px-5 py-3 rounded-full text-sm font-medium text-center"
+                                    onClick={() => {
+                                        closeMobileMenu();
+                                        openAuthModal("register");
+                                    }}
                                 >
                                     Sign up
-                                </a>
+                                </button>
                             </div>
                         </>
                     )}
                 </div>
             )}
-            <RegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)} />
-            <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+
+            {/* Global Auth Modals (controlled by AuthContext) */}
+            {authModalOpen && authModalType === "register" && (
+                <RegisterModal open={true} onClose={closeAuthModal} />
+            )}
+            {authModalOpen && authModalType === "login" && (
+                <LoginModal open={true} onClose={closeAuthModal} />
+            )}
         </nav>
-    )
-}
+    );
+};

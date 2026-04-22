@@ -1,56 +1,82 @@
 // src/auth/AuthContext.tsx
 import {
     createContext,
-    useState,
+    useContext,
     useEffect,
-    ReactNode,
-    useCallback
+    useState,
+    useCallback,
+    ReactNode
 } from "react";
 import api, { setAuthToken } from "../api/axios";
-import type { AuthResponse, User } from "../types/auth";
+
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    profileImageUrl?: string | null;
+    role: "renter" | "host" | "admin";
+}
+
+interface AuthResponse {
+    token: string;
+    user: User;
+}
+
+type AuthModalType = "login" | "register" | null;
 
 interface AuthContextValue {
     user: User | null;
     token: string | null;
     loading: boolean;
+
     login: (email: string, password: string) => Promise<void>;
     register: (name: string, email: string, password: string) => Promise<void>;
     googleLogin: (credential: string) => Promise<void>;
     logout: () => Promise<void>;
+
+    authModalOpen: boolean;
+    authModalType: AuthModalType;
+    openAuthModal: (type: AuthModalType, redirectTo?: string) => void;
+    closeAuthModal: () => void;
+
+    intendedRoute: string | null;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+export const useAuth = () => {
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+    return ctx;
+};
 
 interface Props {
     children: ReactNode;
 }
 
-export const AuthProvider = ({ children }: Props): JSX.Element => {
+export const AuthProvider = ({ children }: Props) => {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    /**
-     * On app startup, hydrate auth state from localStorage.
-     * This keeps the user logged in across page reloads.
-     */
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+    const [authModalType, setAuthModalType] = useState<AuthModalType>(null);
+    const [intendedRoute, setIntendedRoute] = useState<string | null>(null);
+
+    // hydrate from localStorage
     useEffect(() => {
         const storedToken = localStorage.getItem("accessToken");
         const storedUser = localStorage.getItem("user");
 
         if (storedToken && storedUser) {
             setToken(storedToken);
-            setAuthToken(storedToken); // attach to axios globally
+            setAuthToken(storedToken);
             setUser(JSON.parse(storedUser));
         }
 
         setLoading(false);
     }, []);
 
-    /**
-     * Persist auth state in React + localStorage.
-     * Called after login/register/oauth.
-     */
     const persistAuth = (data: AuthResponse) => {
         setUser(data.user);
         setToken(data.token);
@@ -58,63 +84,104 @@ export const AuthProvider = ({ children }: Props): JSX.Element => {
 
         localStorage.setItem("accessToken", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
+
+        setAuthModalOpen(false);
+        setAuthModalType(null);
     };
 
-    /**
-     * Register new user.
-     */
-    const register = useCallback(async (name: string, email: string, password: string) => {
-        const res = await api.post<AuthResponse>("/auth/register", { name, email, password });
-        persistAuth(res.data);
-    }, []);
+    const openAuthModal = (type: AuthModalType, redirectTo?: string) => {
+        if (!type) return;
+        const currentPath = window.location.pathname + window.location.search;
+        setAuthModalType(type);
+        setAuthModalOpen(true);
+        setIntendedRoute(redirectTo || currentPath);
+    };
 
-    /**
-     * Normal email/password login.
-     */
-    const login = useCallback(async (email: string, password: string) => {
-        const res = await api.post<AuthResponse>("/auth/login", { email, password });
-        persistAuth(res.data);
-    }, []);
+    const closeAuthModal = () => {
+        setAuthModalOpen(false);
+        setAuthModalType(null);
+    };
 
-    /**
-     * Google OAuth login.
-     */
+    const register = useCallback(
+        async (name: string, email: string, password: string) => {
+            const res = await api.post<AuthResponse>("/auth/register", {
+                name,
+                email,
+                password
+            });
+            persistAuth(res.data);
+        },
+        []
+    );
+
+    const login = useCallback(
+        async (email: string, password: string) => {
+            const res = await api.post<AuthResponse>("/auth/login", {
+                email,
+                password
+            });
+            persistAuth(res.data);
+        },
+        []
+    );
+
     const googleLogin = useCallback(async (credential: string) => {
-        const res = await api.post<AuthResponse>("/auth/oauth/google", { credential });
+        const res = await api.post<AuthResponse>("/auth/oauth/google", {
+            credential
+        });
         persistAuth(res.data);
     }, []);
 
-    /**
-     * Logout clears backend session + local state.
-     */
     const logout = useCallback(async () => {
         try {
-            await api.post("/auth/logout"); // backend clears refresh cookie
+            await api.post("/auth/logout");
         } catch {
-            // Ignore network errors — logout should still clear local state
+            // ignore network errors on logout
         } finally {
             setUser(null);
             setToken(null);
             setAuthToken(null);
-
             localStorage.removeItem("accessToken");
             localStorage.removeItem("user");
+            setIntendedRoute(null);
         }
     }, []);
+
+    // optional: handle global refresh failures (401 from /auth/refresh)
+    useEffect(() => {
+        const interceptorId = api.interceptors.response.use(
+            (res) => res,
+            async (error) => {
+                // if refresh itself fails, force logout
+                if (
+                    error.config?.url?.includes("/auth/refresh") &&
+                    error.response?.status === 401
+                ) {
+                    await logout();
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        return () => {
+            api.interceptors.response.eject(interceptorId);
+        };
+    }, [logout]);
 
     const value: AuthContextValue = {
         user,
         token,
         loading,
         login,
-        googleLogin,
         register,
-        logout
+        googleLogin,
+        logout,
+        authModalOpen,
+        authModalType,
+        openAuthModal,
+        closeAuthModal,
+        intendedRoute
     };
 
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
-    );
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -12,14 +12,14 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface LoginProps {
     onSuccess?: () => void; // optional callback for modal usage
 }
 
 export const Login = ({ onSuccess }: LoginProps) => {
-    const { login } = useAuth();
+    const { login, openAuthModal, closeAuthModal } = useAuth();
     const navigate = useNavigate();
 
     const [email, setEmail] = useState("");
@@ -92,14 +92,32 @@ export const Login = ({ onSuccess }: LoginProps) => {
                     <GoogleLoginButton onSuccess={onSuccess} />
                 </Box>
 
+                {/* Forgot Password → modal or page */}
                 <Box mt={3} textAlign="center">
-                    <MuiLink component={Link} to="/forgot-password" underline="hover">
+                    <MuiLink
+                        underline="hover"
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => {
+                            closeAuthModal();
+                            // If you have a forgot-password modal:
+                            // openAuthModal("forgot");
+                            navigate("/forgot-password");
+                        }}
+                    >
                         Forgot your password
                     </MuiLink>
                 </Box>
 
+                {/* Create Account → Register modal */}
                 <Box mt={1} textAlign="center">
-                    <MuiLink component={Link} to="/register" underline="hover">
+                    <MuiLink
+                        underline="hover"
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => {
+                            closeAuthModal();
+                            openAuthModal("register");
+                        }}
+                    >
                         Create an account
                     </MuiLink>
                 </Box>

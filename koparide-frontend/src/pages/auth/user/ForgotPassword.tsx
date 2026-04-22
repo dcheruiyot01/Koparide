@@ -11,14 +11,13 @@ import {
     Alert,
     Link as MuiLink
 } from "@mui/material";
-import { Link } from "react-router-dom";
-
+import { useAuth } from "../../../auth/useAuth";
 export const ForgotPassword = () => {
     const [email, setEmail] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-
+    const { openAuthModal, closeAuthModal } = useAuth();
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
@@ -72,8 +71,16 @@ export const ForgotPassword = () => {
                     </Stack>
                 </form>
 
+                {/* 🔥 Back to Login → open Login modal */}
                 <Box mt={3} textAlign="center">
-                    <MuiLink component={Link} to="/login" underline="hover">
+                    <MuiLink
+                        underline="hover"
+                        sx={{ cursor: "pointer" }}
+                        onClick={() => {
+                            closeAuthModal();       // close Forgot Password modal/page
+                            openAuthModal("login"); // open Login modal
+                        }}
+                    >
                         Back to Login
                     </MuiLink>
                 </Box>

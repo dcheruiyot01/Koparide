@@ -27,6 +27,8 @@ import api from '../../api/axios'
 // ==================== TYPES ====================
 
 export interface UserDetails {
+    firstName: string
+    lastName: string
     about: string
     languages: string
     phoneNumber: string
@@ -187,6 +189,16 @@ export function ProfileTabs({
         }))
     }
 
+    // Get full name helper
+    const getFullName = () => {
+        if (editForm.firstName && editForm.lastName) {
+            return `${editForm.firstName} ${editForm.lastName}`
+        }
+        if (editForm.firstName) return editForm.firstName
+        if (editForm.lastName) return editForm.lastName
+        return user.name || 'User'
+    }
+
     // File upload handlers
     const validateFile = (file: File): string | null => {
         if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
@@ -215,7 +227,7 @@ export function ProfileTabs({
             const formData = new FormData()
             formData.append('license', file)
 
-            const response = await api.post('/api/profile/license', formData, {
+            const response = await api.post('/api/profile/upload-license', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             })
 
@@ -488,7 +500,7 @@ export function ProfileTabs({
                     <div className="animate-in fade-in duration-300">
                         <div className="flex justify-between items-start mb-6">
                             <h2 className="text-xl font-bold text-gray-900">
-                                About {user.name.split(' ')[0]}
+                                About {getFullName().split(' ')[0]}
                             </h2>
                             {!isEditing && (
                                 <button
@@ -501,15 +513,60 @@ export function ProfileTabs({
                             )}
                         </div>
 
+                        {/* Name Section - Displayed prominently */}
+                        {!isEditing && (details.firstName || details.lastName) && (
+                            <div className="mb-6 pb-6 border-b border-gray-100">
+                                <div className="flex items-start">
+                                    <User className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm text-gray-500">Full Name</p>
+                                        <p className="text-lg font-semibold text-gray-900">
+                                            {details.firstName} {details.lastName}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {isEditing ? (
                             <div className="space-y-6">
+                                {/* First Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        First Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.firstName || ''}
+                                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
+                                        placeholder="Enter your first name"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Last Name */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        Last Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editForm.lastName || ''}
+                                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
+                                        placeholder="Enter your last name"
+                                        required
+                                    />
+                                </div>
+
                                 {/* Bio */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                         Bio
                                     </label>
                                     <textarea
-                                        value={editForm.about}
+                                        value={editForm.about || ''}
                                         onChange={(e) => handleInputChange('about', e.target.value)}
                                         rows={4}
                                         className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
@@ -525,7 +582,7 @@ export function ProfileTabs({
                                         </label>
                                         <input
                                             type="text"
-                                            value={editForm.languages}
+                                            value={editForm.languages || ''}
                                             onChange={(e) => handleInputChange('languages', e.target.value)}
                                             className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
                                             placeholder="e.g., English, Swahili"
@@ -539,7 +596,7 @@ export function ProfileTabs({
                                         </label>
                                         <input
                                             type="tel"
-                                            value={editForm.phoneNumber}
+                                            value={editForm.phoneNumber || ''}
                                             onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                                             className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
                                             placeholder="+254 XXX XXX XXX"
@@ -553,7 +610,7 @@ export function ProfileTabs({
                                         </label>
                                         <input
                                             type="text"
-                                            value={editForm.address}
+                                            value={editForm.address || ''}
                                             onChange={(e) => handleInputChange('address', e.target.value)}
                                             className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#00A699] focus:border-transparent outline-none transition"
                                             placeholder="Your location"
@@ -713,19 +770,22 @@ export function ProfileTabs({
                         ) : (
                             <div className="space-y-8">
                                 {/* Bio */}
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                                    {details.about || "This user hasn't added a bio yet."}
-                                </p>
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-medium text-gray-500 mb-2">Bio</h3>
+                                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                                        {details.about || "This user hasn't added a bio yet."}
+                                    </p>
+                                </div>
 
                                 {/* Details Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8 pt-6 border-t border-gray-100">
-                                    {/* Location */}
-                                    <div className="flex items-start">
+                                    {/* Location - Now with Name above it */}
+                                    <div className="flex items-start md:col-span-2">
                                         <MapPin className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
                                         <div>
-                                            <p className="text-sm text-gray-500">Lives in</p>
+                                            <p className="text-sm text-gray-500">Location</p>
                                             <p className="font-medium text-gray-900">
-                                                {user.location}
+                                                {user.location || details.address || 'Not specified'}
                                             </p>
                                         </div>
                                     </div>
@@ -872,7 +932,7 @@ export function ProfileTabs({
                                             <div className="text-xs text-gray-500">Rating</div>
                                         </div>
                                         <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                            <div className="text-2xl font-bold text-[#00A699]">{details.responseRate}%</div>
+                                            <div className="text-2xl font-bold text-[#00A699]">{details.responseRate || 0}%</div>
                                             <div className="text-xs text-gray-500">Response</div>
                                         </div>
                                     </div>
