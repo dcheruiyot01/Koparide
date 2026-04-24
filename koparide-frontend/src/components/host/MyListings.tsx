@@ -1,12 +1,19 @@
+// components/host/MyListings.tsx
 import type { HostCar } from '../../types/car.ts';
 import { Star, MapPin, Pencil, Trash2, Car } from 'lucide-react';
 
 interface MyListingsProps {
     cars: HostCar[];
     onEdit: (car: HostCar) => void;
-    onDelete: (carId: string | number) => void; // Accept both string and number
+    onDelete: (carId: string | number) => void;
     onAddNew: () => void;
 }
+
+/**
+ * Placeholder image URL for cars without any image.
+ * (Free unsplash fallback)
+ */
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&auto=format&fit=crop&w=764&q=80';
 
 export const MyListings = ({
                                cars,
@@ -14,10 +21,7 @@ export const MyListings = ({
                                onDelete,
                                onAddNew,
                            }: MyListingsProps) => {
-
-
     // Empty state
-    console.log('cars', cars);
     if (cars.length === 0) {
         return (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
@@ -39,17 +43,16 @@ export const MyListings = ({
             </div>
         );
     }
+
     // Listings grid
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {cars.map((car) => {
-                console.log('car', car.insurance_url);
                 // Safely determine the primary image
                 const images = car.imagesList ?? [];
-                const primaryImage =
-                    images.find((img) => img?.isPrimary)?.url ??
-                    images[0]?.url ??
-                    'https://images.unsplash.com/photo-1580273916550-e323be2ae537?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=8';
+                const primaryImage = images.find((img) => img?.isPrimary)?.url
+                    ?? images[0]?.url
+                    ?? FALLBACK_IMAGE;
 
                 // Construct display name from make and model
                 const displayName = [car.make, car.model].filter(Boolean).join(' ') || 'Unknown Car';
@@ -63,7 +66,7 @@ export const MyListings = ({
                 return (
                     <div
                         key={car.id}
-                        className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-100"
+                        className="bg-white rounded-xl overflow-hidden shadow-md border border-gray-100 transition-transform hover:scale-[1.02]"
                     >
                         {/* Image */}
                         <div className="relative h-48 bg-gray-200">
@@ -72,6 +75,10 @@ export const MyListings = ({
                                 alt={displayName}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
+                                onError={(e) => {
+                                    // Fallback if the URL fails to load
+                                    (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+                                }}
                             />
                             {/* Status Badge */}
                             <div

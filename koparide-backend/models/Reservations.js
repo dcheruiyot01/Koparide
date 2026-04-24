@@ -30,8 +30,14 @@ const Reservation = sequelize.define('Reservation', {
     currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'KES' },
 
     paymentIntentId: { type: DataTypes.STRING, allowNull: true },
+
+    // M‑Pesa specific fields
+    mpesaCheckoutId: { type: DataTypes.STRING, allowNull: true },
+    mpesaReceipt: { type: DataTypes.STRING, allowNull: true },
+    paymentError: { type: DataTypes.TEXT, allowNull: true },
+
     status: {
-        type: DataTypes.ENUM('pending', 'confirmed', 'cancelled', 'completed', 'failed'),
+        type: DataTypes.ENUM('pending', 'confirmed', 'cancelled', 'completed', 'failed', 'payment_pending'),
         allowNull: false,
         defaultValue: 'pending'
     }
@@ -39,9 +45,10 @@ const Reservation = sequelize.define('Reservation', {
     tableName: 'reservations',
     timestamps: true,
     indexes: [
-        { fields: ['carId', 'startDate', 'endDate'] },  // Fixed index field names
+        { fields: ['carId', 'startDate', 'endDate'] },
         { fields: ['userId'] },
-        { fields: ['status'] }
+        { fields: ['status'] },
+        { fields: ['mpesaCheckoutId'] }  // optional, speeds up lookups by checkout ID
     ]
 });
 

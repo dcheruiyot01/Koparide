@@ -9,6 +9,9 @@
 
 const AuthService = require('../services/auth.service');
 
+// Optional: add a simple logger if you don't have one
+const logger = console; // or require('../utils/logger');
+
 module.exports = {
 
   /**
@@ -17,12 +20,12 @@ module.exports = {
   async register(req, res, next) {
     try {
       const result = await AuthService.register(req.body);
-
       return res.status(201).json({
         message: 'User registered successfully',
         ...result
       });
     } catch (err) {
+      logger.error('Registration error:', err);
       next(err);
     }
   },
@@ -32,39 +35,56 @@ module.exports = {
    * - Issues access token (JSON)
    * - Issues refresh token (HTTP-only cookie)
    */
-  // controllers/auth.controller.js
   async login(req, res, next) {
     try {
-      // AuthService.login should validate credentials and return tokens + user
       const { accessToken, refreshToken, user } = await AuthService.login(req.body);
 
-      // Set refresh token as secure, httpOnly cookie (browser can't access it directly)
+      // Set refresh token as secure, httpOnly cookie
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production', // only secure in production
+        secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
         maxAge: 30 * 24 * 60 * 60 * 1000
       });
 
-      // Return access token + user in response body
       return res.status(200).json({
         message: "Login successful",
         token: accessToken,
         user
       });
     } catch (err) {
-      next(err);
+      // Log the full error for debugging
+      logger.error('Login error:', err.message, err.stack);
+
+      // Determine appropriate status code and user-friendly message
+      let statusCode = 401;
+      let message = 'Invalid email or password';
+
+      if (err.message) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes('not found') || msg.includes('does not exist')) {
+          statusCode = 404;
+          message = 'No account found with this email address';
+        } else if (msg.includes('password') || msg.includes('credentials') || msg.includes('invalid')) {
+          statusCode = 401;
+          message = 'Invalid email or password';
+        } else {
+          message = err.message; // use original message if not sensitive
+        }
+      }
+
+      // Pass a structured error to the global error handler
+      const error = new Error(message);
+      error.statusCode = statusCode;
+      next(error);
     }
   },
 
   async googleOAuth(req, res, next) {
     try {
-      const { credential } = req.body; // Google ID token from frontend
+      const { credential } = req.body;
+      const { user, accessToken, refreshToken } = await AuthService.googleOAuth(credential);
 
-      const { user, accessToken, refreshToken } =
-          await AuthService.googleOAuth(credential);
-
-      // Set refresh token cookie
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -78,6 +98,7 @@ module.exports = {
         user
       });
     } catch (err) {
+      logger.error('Google OAuth error:', err);
       next(err);
     }
   },
@@ -88,12 +109,12 @@ module.exports = {
   async forgotPassword(req, res, next) {
     try {
       const result = await AuthService.createPasswordResetToken(req.body.email);
-
       return res.status(200).json({
         message: 'Password reset link generated',
         ...result
       });
     } catch (err) {
+      logger.error('Forgot password error:', err);
       next(err);
     }
   },
@@ -105,11 +126,10 @@ module.exports = {
     try {
       const { token } = req.params;
       const { password } = req.body;
-
       const result = await AuthService.resetPassword(token, password);
-
       return res.status(200).json(result);
     } catch (err) {
+      logger.error('Reset password error:', err);
       next(err);
     }
   },
@@ -121,9 +141,9 @@ module.exports = {
     try {
       const { token } = req.params;
       const result = await AuthService.verifyEmail(token);
-
       return res.status(200).json(result);
     } catch (err) {
+      logger.error('Email verification error:', err);
       next(err);
     }
   },
@@ -134,27 +154,22 @@ module.exports = {
   async resendVerificationEmail(req, res, next) {
     try {
       const { email } = req.body;
-
       const result = await AuthService.resendVerificationEmail(email);
-
       return res.status(200).json(result);
     } catch (err) {
+      logger.error('Resend verification error:', err);
       next(err);
     }
   },
 
   /**
    * Refresh access token
-   * - Reads refresh token from cookie
-   * - Validates it via AuthService
-   * - Returns new access token
    */
   async refresh(req, res, next) {
     try {
       const refreshToken = req.cookies.refreshToken;
       const result = await AuthService.refresh(refreshToken);
 
-      // Set the new refresh token cookie
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -163,32 +178,30 @@ module.exports = {
       });
 
       return res.status(200).json({
-        token: result.accessToken // Send only access token in response body
+        token: result.accessToken
       });
     } catch (err) {
+      logger.error('Refresh token error:', err);
       next(err);
     }
   },
 
   /**
    * Logout user
-   * - Revokes refresh token in DB
-   * - Clears refresh token cookie
    */
   async logout(req, res, next) {
     try {
       await AuthService.logout(req.user);
-
       res.clearCookie('refreshToken', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'
       });
-
       return res.status(200).json({
         message: 'Logged out successfully'
       });
     } catch (err) {
+      logger.error('Logout error:', err);
       next(err);
     }
   }

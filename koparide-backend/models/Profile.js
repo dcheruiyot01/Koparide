@@ -19,6 +19,7 @@ const Profile = sequelize.define('Profile', {
     driversLicenseNumber: { type: DataTypes.STRING(50), allowNull: true, unique: true },
     gender: { type: DataTypes.ENUM('Male', 'Female', 'Other'), allowNull: true },
     dateOfBirth: { type: DataTypes.DATEONLY, allowNull: true },
+    driversLicenseExpiry: { type: DataTypes.DATEONLY, allowNull: true },
     profileImageUrl: { type: DataTypes.TEXT, allowNull: true },
     driversLicenseUrl: { type: DataTypes.TEXT, allowNull: true },
     address: { type: DataTypes.TEXT, allowNull: true },

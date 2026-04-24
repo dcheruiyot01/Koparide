@@ -194,5 +194,56 @@ module.exports = {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
         return car.update({ rented_to: null });
+    },
+
+    //
+    async createCarWithAssets(carData, imageFiles = [], logbookFile = null, insuranceFile = null) {
+        const transaction = await sequelize.transaction();
+        try {
+            // 1. Create the car
+            const car = await Car.create({
+                ...carData,
+                status: 'pending'
+            }, { transaction });
+
+            // 2. Upload images
+            let savedImages = [];
+            if (imageFiles && imageFiles.length) {
+                for (let i = 0; i < imageFiles.length; i++) {
+                    const file = imageFiles[i];
+                    const imageUrl = `${process.env.BASE_URL}/uploads/cars/${file.filename}`;
+                    const isPrimary = i === 0; // first image becomes primary
+                    const img = await CarImage.create({
+                        carId: car.id,
+                        url: imageUrl,
+                        altText: `${car.make} ${car.model}`,
+                        isPrimary,
+                        position: i
+                    }, { transaction });
+                    savedImages.push(img);
+                }
+            }
+
+            // 3. Upload logbook (if provided)
+            if (logbookFile) {
+                const logbookUrl = `${process.env.BASE_URL}/uploads/cars/registration/${logbookFile.filename}`;
+                await car.update({ logbook_url: logbookUrl }, { transaction });
+            }
+
+            // 4. Upload insurance (if provided)
+            if (insuranceFile) {
+                const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${insuranceFile.filename}`;
+                await car.update({ insurance_url: insuranceUrl }, { transaction });
+            }
+
+            await transaction.commit();
+
+            // Fetch full car with relations
+            const fullCar = await this.getCarById(car.id);
+            return { car: fullCar, images: savedImages.map(i => i.url) };
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
     }
 };

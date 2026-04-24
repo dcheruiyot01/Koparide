@@ -6,7 +6,7 @@ const User = require('../models/User');
 const UPDATABLE_FIELDS = new Set([
     'firstName', 'lastName', 'phoneNumber', 'nationalIdNumber',
     'gender', 'dateOfBirth', 'address', 'profileImageUrl',
-    'driversLicenseUrl', 'preferredCarType', 'languagePreference', 'about'
+    'driversLicenseUrl', 'preferredCarType', 'languagePreference', 'about', 'driversLicenseNumber','driversLicenseExpiry'
 ]);
 
 
@@ -96,8 +96,10 @@ function transformProfile(profile, user) {
         email: user?.email || '',
         phoneNumber: profile.phoneNumber || '',
         nationalIdNumber: profile.nationalIdNumber || '',
+        driversLicenseNumber: profile.driversLicenseNumber || '',
         gender: profile.gender || '',
         dateOfBirth: profile.dateOfBirth || null,
+        driversLicenseExpiry: profile.driversLicenseExpiry || null,
         age,
         address: profile.address || '',
         location: profile.address || 'Location not set',

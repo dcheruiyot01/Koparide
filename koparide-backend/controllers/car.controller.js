@@ -7,63 +7,55 @@
  */
 
 const CarService = require('../services/car.service');
-const MailService = require('../services/mail.service'); // notification emails
+const MailService = require('../services/mail.service');
 
 module.exports = {
     /**
-     * Create a new car listing
-     * - Owner must be authenticated (req.user)
-     * - Sends notification email to owner
+     * Create a new car listing (with images, logbook, insurance in one request)
      */
     async createCarListing(req, res, next) {
         try {
-            // 1. Create base car record
-            const car = await CarService.createCarListing({
+            // Extract files from the new multipart structure
+            const imageFiles = req.files?.['images'] || [];      // array of image files
+            const logbookFile = req.files?.['logbook']?.[0];    // single file or undefined
+            const insuranceFile = req.files?.['insurance']?.[0];
+
+            // Merge text fields (including existingImages – ignored for creation)
+            const carData = {
                 ownerId: req.user.id,
-                ...req.body
-            });
+                ...req.body,
+            };
 
-            if (!car) {
-                return res.status(400).json({ message: "Car could not be created" });
-            }
+            // Call service method that handles everything in a transaction
+            const { car, images } = await CarService.createCarWithAssets(
+                carData,
+                imageFiles,
+                logbookFile,
+                insuranceFile
+            );
 
-            // 2. Upload images (if any were attached)
-            let uploadedImages = [];
-            if (req.files && req.files.length > 0) {
-                uploadedImages = await CarService.uploadCarImages(car.id, req.files);
-            }
-
-            // 3. Re-fetch full car with images included
-            const fullCar = await CarService.getCarById(car.id);
-
-            // 4. Send email notification
+            // Send email notification
             await MailService.sendMail({
                 to: req.user.email,
-                subject: "Car Listing Pending Approval",
-                html: `
-                <p>Dear ${req.user.name},</p>
-                <p>Your car "${car.make} ${car.model}" has been submitted successfully.</p>
-                <p>It is now pending approval by our admin team (up to 24 hours).</p>
-                <p>Thank you for listing with us!</p>
-            `
+                subject: 'Car Listing Pending Approval',
+                html: `<p>Dear ${req.user.name},</p>
+                       <p>Your car "${car.make} ${car.model}" has been submitted successfully.</p>
+                       <p>It is now pending approval by our admin team (up to 24 hours).</p>
+                       <p>Thank you for listing with us!</p>`,
             });
 
-            // 5. Respond with created car
             res.status(201).json({
-                message: "Car listing submitted successfully. Pending approval.",
-                car: fullCar,
-                images: uploadedImages.map(img => img.url)
+                message: 'Car listing submitted successfully. Pending approval.',
+                car,
+                images,
             });
-
         } catch (err) {
             next(err);
         }
     },
 
     /**
-     * Update a car listing
-     * - Owner must be authenticated (req.user)
-     * - Sends notification email to owner
+     * Update a car listing (with optional new images, logbook, insurance)
      */
     async updateCarListing(req, res, next) {
         try {
@@ -72,124 +64,126 @@ module.exports = {
             // 1. Extract text fields
             const updateData = {
                 ownerId: req.user.id,
-                ...req.body
+                ...req.body,
             };
 
-            // 2. Update base car fields
+            // 2. Parse existingImages (sent as JSON string from frontend)
+            let existingImages = [];
+            if (req.body.existingImages) {
+                try {
+                    existingImages = JSON.parse(req.body.existingImages);
+                } catch {
+                    existingImages = [];
+                }
+            }
+
+            // 3. Extract uploaded files
+            const newImageFiles = req.files?.['images'] || [];
+            const newLogbookFile = req.files?.['logbook']?.[0];
+            const newInsuranceFile = req.files?.['insurance']?.[0];
+
+            // 4. Update car record (basic info + keep existing images)
             const updatedCar = await CarService.updateCarListing(id, updateData);
             if (!updatedCar) {
-                return res.status(404).json({ message: "Car listing not found" });
+                return res.status(404).json({ message: 'Car listing not found' });
             }
 
-            // 3. Handle existing images from body
-            const { existingImages } = req.body;
-            let oldImages = [];
-            if (existingImages) {
-                oldImages = Array.isArray(existingImages)
-                    ? existingImages
-                    : JSON.parse(existingImages);
+            // 5. Upload new images (if any) – they will be added to CarImage table
+            let newlyUploadedImages = [];
+            if (newImageFiles.length > 0) {
+                newlyUploadedImages = await CarService.uploadCarImages(id, newImageFiles);
             }
 
-            // 4. Upload new images (if any)
-            let newImages = [];
-            if (req.files && req.files.length > 0) {
-                newImages = await CarService.uploadCarImages(updatedCar.id, req.files);
+            // 6. Replace logbook if a new file is provided
+            if (newLogbookFile) {
+                const logbookUrl = `${process.env.BASE_URL}/uploads/cars/registration/${newLogbookFile.filename}`;
+                await CarService.uploadRegistration(id, logbookUrl);
             }
 
-            // 5. Combine old + new (URLs only for response, DB handled in uploadCarImages)
+            // 7. Replace insurance if a new file is provided
+            if (newInsuranceFile) {
+                const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${newInsuranceFile.filename}`;
+                await CarService.uploadInsurance(id, insuranceUrl);
+            }
+
+            // 8. Build final image list for response
             const finalImages = [
-                ...oldImages,
-                ...newImages.map(img => img.url)
+                ...existingImages,
+                ...newlyUploadedImages.map(img => img.url),
             ];
 
-            // 6. Re-fetch full car with images included
-            const fullCar = await CarService.getCarById(updatedCar.id);
+            // 9. Re-fetch full car with all relations
+            const fullCar = await CarService.getCarById(id);
 
-            // 7. Send email notification
+            // 10. Send email notification
             await MailService.sendMail({
                 to: req.user.email,
-                subject: "Car Listing Updated - Pending Approval",
-                html: `
-                <p>Dear ${req.user.name},</p>
-                <p>Your car "${updatedCar.make} ${updatedCar.model}" has been updated successfully.</p>
-                <p>The changes are now pending approval by our admin team (up to 24 hours).</p>
-                <p>Thank you for keeping your listing up to date!</p>
-            `
+                subject: 'Car Listing Updated - Pending Approval',
+                html: `<p>Dear ${req.user.name},</p>
+                       <p>Your car "${fullCar.make} ${fullCar.model}" has been updated successfully.</p>
+                       <p>The changes are now pending approval by our admin team (up to 24 hours).</p>
+                       <p>Thank you for keeping your listing up to date!</p>`,
             });
 
-            // 8. Respond with updated car
             res.status(200).json({
-                message: "Car listing updated successfully. Pending approval.",
+                message: 'Car listing updated successfully. Pending approval.',
                 car: fullCar,
-                images: finalImages
+                images: finalImages,
             });
-
         } catch (err) {
             next(err);
         }
     },
 
     /**
-     * Upload car images (multer provides req.files)
+     * Upload car images (kept for backward compatibility – not used by new frontend)
      */
     async uploadCarImages(req, res, next) {
         try {
             const { id } = req.params;
-            const images = req.files.map(file => file.path);
-
-            const car = await CarService.uploadCarImages(id, images);
-
+            const imageFiles = req.files?.['images'] || [];
+            const uploadedImages = await CarService.uploadCarImages(id, imageFiles);
             res.status(200).json({
                 message: 'Car images uploaded successfully',
-                car
+                images: uploadedImages,
             });
         } catch (err) {
             next(err);
         }
     },
 
-    // controllers/carController.js
-
     /**
-     * Upload insurance document (multer single file)
+     * Upload insurance document (kept for backward compatibility)
      */
     async uploadInsurance(req, res, next) {
         try {
             const { id } = req.params;
-            // req.file.filename is set by multer (if using disk storage with filename)
-            const filename = req.file.filename;
-            const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${filename}`;
-
+            const file = req.file;
+            if (!file) return res.status(400).json({ message: 'No file uploaded' });
+            const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${file.filename}`;
             const car = await CarService.uploadInsurance(id, insuranceUrl);
-
-            res.status(200).json({
-                message: 'Insurance uploaded successfully',
-                car
-            });
+            res.status(200).json({ message: 'Insurance uploaded successfully', car });
         } catch (err) {
             next(err);
         }
     },
 
     /**
-     * Upload Registration/LogBook document (multer single file)
+     * Upload registration/logbook document (kept for backward compatibility)
      */
     async uploadRegistration(req, res, next) {
         try {
             const { id } = req.params;
-            const filename = req.file.filename;
-            const registrationUrl = `${process.env.BASE_URL}/uploads/cars/registration/${filename}`;
-
+            const file = req.file;
+            if (!file) return res.status(400).json({ message: 'No file uploaded' });
+            const registrationUrl = `${process.env.BASE_URL}/uploads/cars/registration/${file.filename}`;
             const car = await CarService.uploadRegistration(id, registrationUrl);
-
-            res.status(200).json({
-                message: 'Registration uploaded successfully',
-                car
-            });
+            res.status(200).json({ message: 'Registration uploaded successfully', car });
         } catch (err) {
             next(err);
         }
     },
+
     /**
      * Approve car listing (admin only)
      */
@@ -216,7 +210,6 @@ module.exports = {
 
     /**
      * Get all public cars (approved + not deleted)
-     * Supports pagination and filters via query params
      */
     async getPublicCars(req, res, next) {
         try {
@@ -226,20 +219,15 @@ module.exports = {
             next(err);
         }
     },
+
     /**
      * Get car details by ID
-     * -------------------------
-     * Returns a single car with its images, owner, and renter info.
      */
     async getCarById(req, res, next) {
         try {
             const { id } = req.params;
             const car = await CarService.getCarById(id);
-
-            if (!car) {
-                return res.status(404).json({ error: 'Car not found' });
-            }
-
+            if (!car) return res.status(404).json({ error: 'Car not found' });
             res.status(200).json(car);
         } catch (err) {
             next(err);
@@ -259,28 +247,18 @@ module.exports = {
     },
 
     /**
-     * Rent car (assign renter user ID)
-     * - Sends notification email to renter
+     * Rent car
      */
     async rentCar(req, res, next) {
         try {
             const { id } = req.params;
             const renterId = req.user.id;
-
             const car = await CarService.rentCar(id, renterId);
-
             await MailService.sendEmail(
                 req.user.email,
                 'Car Rental Confirmation',
-                `Dear ${req.user.name},
-
-You have successfully rented the car "${car.make} ${car.model}".
-Price per day: ${car.pricePerDay}
-Owner ID: ${car.ownerId}
-
-Enjoy your ride!`
+                `Dear ${req.user.name},\n\nYou have successfully rented the car "${car.make} ${car.model}".\nPrice per day: ${car.pricePerDay}\nOwner ID: ${car.ownerId}\n\nEnjoy your ride!`
             );
-
             res.status(200).json({ message: 'Car rented successfully', car });
         } catch (err) {
             next(err);
@@ -288,7 +266,7 @@ Enjoy your ride!`
     },
 
     /**
-     * Return car (clear rented_to)
+     * Return car
      */
     async returnCar(req, res, next) {
         try {
@@ -297,5 +275,5 @@ Enjoy your ride!`
         } catch (err) {
             next(err);
         }
-    }
+    },
 };

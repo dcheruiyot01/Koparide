@@ -1,5 +1,6 @@
 // src/layout/Navbar.tsx (or wherever you keep it)
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom"; // 👈 import useNavigate
 import {
     Car,
     Menu,
@@ -26,6 +27,7 @@ export const Navbar = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement | null>(null);
+    const navigate = useNavigate(); // 👈 hook for navigation
 
     const {
         user,
@@ -71,6 +73,7 @@ export const Navbar = () => {
 
     const handleLogout = () => {
         logout();
+        navigate("/"); // 👈 redirect to home page
         closeProfileDropdown();
         closeMobileMenu();
     };

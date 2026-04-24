@@ -1,15 +1,17 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
+// pages/ReservationPage.tsx
+import React, { useMemo, useState, useEffect, useCallback, useRef, useContext } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { Navbar } from "../layout/NavBar";
 import { Footer } from "../layout/Footer";
 import api from "../api/axios";
-
+import { AuthContext } from "../auth/AuthContext";
+import { AlertCircle } from 'lucide-react';
 // Import components
 import { CarHeader } from "../components/reservation/CarHeader";
 import { TripDetails } from "../components/reservation/TripDetails";
 import { ProtectionPlans } from "../components/reservation/ProtectionPlan";
 import { CheckoutSummary } from "../components/reservation/CheckoutSummary";
-import { ActionButtons } from "../components/reservation/ActionsButton";
+import { ActionButtons } from "../components/reservation/ActionButtons";
 import { InfoCard } from "../components/reservation/InfoCard";
 
 // Import types and constants
@@ -18,7 +20,6 @@ import type {
     BookingState,
     ProtectionType,
     RateType,
-    PaymentMethod as PaymentMethodType,
     PromoApplied
 } from "../components/reservation/types";
 import { PROTECTION_PRICES, TAX_RATE } from "../components/reservation/types";
@@ -28,6 +29,7 @@ export const ReservationPage: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const checkoutSummaryRef = useRef<{ getCardPaymentMethod: () => Promise<string | null> }>(null);
+    const auth = useContext(AuthContext);
 
     // Validation errors state
     const [validationErrors, setValidationErrors] = useState({
@@ -40,7 +42,6 @@ export const ReservationPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [bookingState, setBookingState] = useState<BookingState | null>(null);
-    const [reservationId, setReservationId] = useState<number | null>(null); // Added reservationId state
 
     // UI states
     const [selectedRate] = useState<RateType>("nonrefundable");
@@ -50,13 +51,18 @@ export const ReservationPage: React.FC = () => {
     const [mpesaPhoneNumber, setMpesaPhoneNumber] = useState('');
 
     // License & terms
-    const [licenseExpired] = useState(true);
-    const [licenseAcknowledged, setLicenseAcknowledged] = useState(false);
+    const [licenseAcknowledged, setLicenseAcknowledged] = useState(false); // kept but will be ignored (no warning)
     const [termsAgreed, setTermsAgreed] = useState(false);
 
-    // Processing
+    // License blocking
+    const [licenseBlocked, setLicenseBlocked] = useState(false);
+    const [licenseMessage, setLicenseMessage] = useState('');
+
+    // Processing states
     const [processing, setProcessing] = useState(false);
     const [paymentError, setPaymentError] = useState<string | null>(null);
+    const [paymentPending, setPaymentPending] = useState(false);
+    const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
     // ==================== DERIVED PRICES ====================
     const basePrice = useMemo(() => {
@@ -65,27 +71,20 @@ export const ReservationPage: React.FC = () => {
     }, [car, bookingState]);
 
     const protectionCost = useMemo(() => PROTECTION_PRICES[selectedProtection], [selectedProtection]);
-
     const subtotal = useMemo(() => basePrice + protectionCost, [basePrice, protectionCost]);
-
-    const discountAmount = useMemo(() => {
-        if (promoApplied) return Math.min(promoApplied.discount, subtotal);
-        return 0;
-    }, [promoApplied, subtotal]);
-
+    const discountAmount = useMemo(() => promoApplied ? Math.min(promoApplied.discount, subtotal) : 0, [promoApplied, subtotal]);
     const taxAmount = useMemo(() => (subtotal - discountAmount) * TAX_RATE, [subtotal, discountAmount]);
-
     const totalAmount = useMemo(() => subtotal - discountAmount + taxAmount, [subtotal, discountAmount, taxAmount]);
 
     const canProceed = useMemo(() => {
         if (!car || !bookingState) return false;
-        if (licenseExpired && !licenseAcknowledged) return false;
         if (!termsAgreed) return false;
-        if (processing) return false;
+        if (processing || paymentPending) return false;
         return true;
-    }, [car, bookingState, licenseExpired, licenseAcknowledged, termsAgreed, processing]);
+    }, [car, bookingState, termsAgreed, processing, paymentPending]);
 
     // ==================== EFFECTS ====================
+    // 1. Get booking state from location
     useEffect(() => {
         const state = location.state as BookingState;
         if (!state) {
@@ -98,6 +97,7 @@ export const ReservationPage: React.FC = () => {
         setBookingState(state);
     }, [location.state, id, navigate]);
 
+    // 2. Fetch car details
     useEffect(() => {
         if (!id) return;
         const controller = new AbortController();
@@ -141,6 +141,77 @@ export const ReservationPage: React.FC = () => {
         return () => controller.abort();
     }, [id]);
 
+    // 3. Fetch user profile and validate license for the entire trip period
+    useEffect(() => {
+        const checkLicenseForTrip = async () => {
+            // Wait until we have the user and the booking dates
+            if (!auth?.user?.id) return;
+            if (!bookingState?.endDate) return; // no trip end date yet
+
+            try {
+                const response = await api.get('/api/profile');
+                const profile = response.data.user || response.data;
+                const expiry = profile?.driversLicenseExpiry;
+
+                // Case 1: No license on file
+                if (!expiry) {
+                    setLicenseBlocked(true);
+                    setLicenseMessage(
+                        "You haven't added your driver's license information. " +
+                        "Please update your profile before booking a car."
+                    );
+                    return;
+                }
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const expiryDate = new Date(expiry);
+                expiryDate.setHours(0, 0, 0, 0);
+                const tripEndDate = new Date(bookingState.endDate);
+                tripEndDate.setHours(0, 0, 0, 0);
+
+                // Case 2: License already expired
+                if (expiryDate < today) {
+                    setLicenseBlocked(true);
+                    setLicenseMessage(
+                        `Your driver's license expired on ${expiryDate.toLocaleDateString()}. ` +
+                        "Please update it in your profile before booking."
+                    );
+                    return;
+                }
+
+                // Case 3: License expires during the rental period
+                if (expiryDate < tripEndDate) {
+                    setLicenseBlocked(true);
+                    setLicenseMessage(
+                        `Your driver's license will expire on ${expiryDate.toLocaleDateString()}, ` +
+                        "which is before your trip ends. Please update your license in your profile " +
+                        "before booking this trip."
+                    );
+                    return;
+                }
+
+                // License is valid for the whole trip
+                setLicenseBlocked(false);
+            } catch (err) {
+                console.error("Failed to check license:", err);
+                setLicenseBlocked(true);
+                setLicenseMessage(
+                    "Unable to verify your driver's license. Please update your profile and try again."
+                );
+            }
+        };
+
+        checkLicenseForTrip();
+    }, [auth?.user, bookingState]); // ← re‑run when user or trip dates change
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+        };
+    }, [pollingInterval]);
+
     // ==================== HANDLERS ====================
     const handleGoBack = useCallback(() => navigate(`/cars/${id}`), [id, navigate]);
 
@@ -162,20 +233,32 @@ export const ReservationPage: React.FC = () => {
         }
     }, []);
 
+    // ==================== POLL M-PESA PAYMENT STATUS ====================
+    const pollMpesaPayment = async (checkoutRequestId: string, maxAttempts = 30, intervalMs = 2000): Promise<any> => {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            try {
+                const statusRes = await api.get(`/api/payments/verify/${checkoutRequestId}`);
+                if (statusRes.data?.isComplete === true) {
+                    return statusRes.data.reservation;
+                } else if (statusRes.data?.isComplete === false && statusRes.data?.message) {
+                    throw new Error(statusRes.data.message);
+                }
+            } catch (err) {
+                console.warn('Polling attempt failed', attempt, err);
+            }
+        }
+        throw new Error('M-Pesa payment confirmation timeout. Please check your transaction status later.');
+    };
+
+    // ==================== MAIN PAYMENT HANDLER ====================
     const handleConfirmPayment = useCallback(async () => {
-        // Validate required fields
         const errors = {
-            license: licenseExpired && !licenseAcknowledged,
             terms: !termsAgreed,
         };
-        setValidationErrors(errors);
-
-        if (errors.license || errors.terms) {
-            if (errors.license) {
-                document.getElementById('license-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else if (errors.terms) {
-                document.getElementById('terms-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+        setValidationErrors(prev => ({ ...prev, terms: !termsAgreed }));
+        if (!termsAgreed) {
+            document.getElementById('terms-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -183,70 +266,45 @@ export const ReservationPage: React.FC = () => {
         setPaymentError(null);
 
         try {
-            // Validate car and booking state
-            if (!car || !bookingState) {
-                throw new Error('Missing car or booking information');
-            }
+            if (!car || !bookingState) throw new Error('Missing car or booking information');
 
-            // Get payment details based on selected method
-            let paymentDetails: any = {};
+            const paymentPayload: any = {
+                method: selectedMethod,
+                booking: {
+                    carId: car.id,
+                    startDate: bookingState.startDate,
+                    endDate: bookingState.endDate,
+                    pickupLocation: bookingState.location,
+                    protectionPlan: selectedProtection,
+                    promoCode: promoApplied?.code || null,
+                    subtotal,
+                    protectionCost,
+                    taxAmount,
+                    discountAmount,
+                    totalAmount,
+                    currency: 'KES',
+                }
+            };
 
             if (selectedMethod === 'card') {
-                if (!checkoutSummaryRef.current) {
-                    throw new Error('Payment form not initialized');
-                }
+                if (!checkoutSummaryRef.current) throw new Error('Payment form not initialized');
                 const paymentMethodId = await checkoutSummaryRef.current.getCardPaymentMethod();
-                if (!paymentMethodId) {
-                    throw new Error('Please enter valid card details');
-                }
-                paymentDetails = { paymentMethodId };
+                if (!paymentMethodId) throw new Error('Please enter valid card details');
+                paymentPayload.paymentDetails = { paymentMethodId };
             } else {
-                if (!mpesaPhoneNumber || mpesaPhoneNumber.length < 10) {
-                    throw new Error('Please enter a valid M-Pesa phone number');
+                if (!mpesaPhoneNumber || !/^254[0-9]{9}$/.test(mpesaPhoneNumber)) {
+                    throw new Error('Valid M-Pesa phone number required (format 254XXXXXXXXX)');
                 }
-                paymentDetails = { phoneNumber: mpesaPhoneNumber };
+                paymentPayload.paymentDetails = { phoneNumber: mpesaPhoneNumber };
             }
 
-            // Step 1: Create reservation
-            const reservationPayload = {
-                carId: car.id,
-                startDate: bookingState.startDate,
-                endDate: bookingState.endDate,
-                pickupLocation: bookingState.location,
-                protectionPlan: selectedProtection,
-                promoCode: promoApplied?.code || null,
-                subtotal,
-                protectionCost,
-                taxAmount,
-                discountAmount,
-                totalAmount,
-                currency: 'KES',
-            };
+            const response = await api.post('/api/payments/process', paymentPayload);
+            const data = response.data;
 
-            console.log('Creating reservation...', reservationPayload);
-            const reservationRes = await api.post('/api/reservations', reservationPayload);
-
-            if (!reservationRes.data?.reservation?.id) {
-                throw new Error('Failed to create reservation');
-            }
-
-            const reservation = reservationRes.data.reservation;
-            setReservationId(reservation.id);
-
-            // Step 2: Process payment
-            const paymentPayload = {
-                method: selectedMethod,
-                reservationId: reservation.id,
-                paymentDetails,
-            };
-
-            console.log('Processing payment...', paymentPayload);
-            const paymentRes = await api.post('/api/payments/process', paymentPayload);
-
-            // Step 3: Handle response
-            if (paymentRes.data?.success) {
-                // Payment successful
-                navigate(`/bookings/confirmation`, {
+            if (selectedMethod === 'card') {
+                if (!data.payment?.success) throw new Error(data.payment?.message || 'Card payment failed');
+                const reservation = data.payment.reservation;
+                navigate('/bookings/confirmation', {
                     state: {
                         car,
                         booking: bookingState,
@@ -254,41 +312,48 @@ export const ReservationPage: React.FC = () => {
                         protection: selectedProtection,
                         rate: selectedRate,
                         reservationId: reservation.id,
-                        transactionId: paymentRes.data.payment?.transactionId ||
-                            paymentRes.data.payment?.checkoutRequestId,
+                        transactionId: data.payment.transactionId,
                         paymentMethod: selectedMethod,
                     }
                 });
             } else {
-                throw new Error(paymentRes.data?.message || 'Payment processing failed');
+                setPaymentPending(true);
+                const checkoutRequestId = data.payment?.checkoutRequestId;
+                if (!checkoutRequestId) throw new Error('Failed to initiate M-Pesa payment');
+                const reservation = await pollMpesaPayment(checkoutRequestId);
+                setPaymentPending(false);
+                navigate('/bookings/confirmation', {
+                    state: {
+                        car,
+                        booking: bookingState,
+                        total: totalAmount,
+                        protection: selectedProtection,
+                        rate: selectedRate,
+                        reservationId: reservation.id,
+                        transactionId: reservation.mpesaReceipt || checkoutRequestId,
+                        paymentMethod: selectedMethod,
+                    }
+                });
             }
         } catch (error: any) {
             console.error('Payment error:', error);
-
-            // Handle different error types
             let errorMessage = 'Payment failed. Please try again.';
-
             if (error.response) {
-                // Backend returned an error response
-                errorMessage = error.response.data?.message ||
-                    `Server error: ${error.response.status}`;
+                errorMessage = error.response.data?.message || `Server error: ${error.response.status}`;
             } else if (error.request) {
-                // Request was made but no response received
                 errorMessage = 'No response from server. Please check your connection.';
             } else if (error.message) {
-                // Local error
                 errorMessage = error.message;
             }
-
             setPaymentError(errorMessage);
+            setPaymentPending(false);
         } finally {
             setProcessing(false);
         }
     }, [
         car, bookingState, totalAmount, selectedProtection, selectedRate, subtotal,
         protectionCost, taxAmount, discountAmount, promoApplied, selectedMethod,
-        mpesaPhoneNumber, checkoutSummaryRef, navigate, licenseExpired,
-        licenseAcknowledged, termsAgreed
+        mpesaPhoneNumber, checkoutSummaryRef, navigate, termsAgreed, pollMpesaPayment
     ]);
 
     // ==================== LOADING & ERROR STATES ====================
@@ -332,13 +397,43 @@ export const ReservationPage: React.FC = () => {
 
     if (!bookingState) return null;
 
+    // ==================== LICENSE BLOCKING MODAL ====================
+    if (licenseBlocked) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col">
+                <Navbar />
+                <main className="flex-grow flex items-center justify-center pt-24 pb-16">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertCircle className="h-8 w-8 text-red-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">License Required</h2>
+                        <p className="text-gray-600 mb-6">{licenseMessage}</p>
+                        <button
+                            onClick={() => navigate('/profile')}
+                            className="w-full bg-[#00A699] hover:bg-[#007A6E] text-white px-6 py-3 rounded-lg font-medium transition"
+                        >
+                            Update My Profile
+                        </button>
+                        <button
+                            onClick={handleGoBack}
+                            className="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            Back to Car Details
+                        </button>
+                    </div>
+                </main>
+                <Footer />
+            </div>
+        );
+    }
+
     // ==================== MAIN RENDER ====================
     return (
         <div className="min-h-screen bg-gray-50">
             <Navbar />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-                {/* Simple back link */}
                 <button
                     onClick={handleGoBack}
                     className="flex items-center text-sm text-gray-500 hover:text-[#00A699] mb-6 group"
@@ -358,13 +453,7 @@ export const ReservationPage: React.FC = () => {
 
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Trip details</h2>
-                            <TripDetails
-                                bookingState={bookingState}
-                                licenseExpired={licenseExpired}
-                                licenseAcknowledged={licenseAcknowledged}
-                                onLicenseAcknowledge={setLicenseAcknowledged}
-                                error={validationErrors.license}
-                            />
+                            <TripDetails bookingState={bookingState} />
                         </div>
 
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -401,11 +490,16 @@ export const ReservationPage: React.FC = () => {
                             />
                             <ActionButtons
                                 canProceed={canProceed}
-                                processing={processing}
+                                processing={processing || paymentPending}
                                 paymentError={paymentError}
                                 onConfirm={handleConfirmPayment}
                                 onBack={handleGoBack}
                             />
+                            {paymentPending && (
+                                <div className="text-center text-sm text-gray-500 mt-2">
+                                    Waiting for M-Pesa confirmation... Please check your phone.
+                                </div>
+                            )}
                             <InfoCard />
                         </div>
                     </aside>
@@ -416,3 +510,4 @@ export const ReservationPage: React.FC = () => {
         </div>
     );
 };
+

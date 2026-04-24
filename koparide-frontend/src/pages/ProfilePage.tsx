@@ -8,12 +8,14 @@ import { ProfileTabs } from '../components/profile/ProfileTabs';
 import type { UserProfileData, UserDetails } from '../types/profile';
 import api from '../api/axios';
 import { AuthContext } from '../auth/AuthContext';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
 
 export const ProfilePage = () => {
-    const [activeTab, setActiveTab] = useState<'about' | 'reviews' | 'verifications'>('about');
+    const [activeTab, setActiveTab] = useState<'about' | 'reviews' | 'verifications' | 'reservations'>('about');
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [profileData, setProfileData] = useState<UserProfileData | null>(null);
     const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -21,6 +23,22 @@ export const ProfilePage = () => {
 
     const auth = useContext(AuthContext);
     const navigate = useNavigate();
+
+    // Auto-dismiss success message after 5 seconds
+    useEffect(() => {
+        if (successMessage) {
+            const timer = setTimeout(() => setSuccessMessage(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage]);
+
+    // Auto-dismiss error after 5 seconds
+    useEffect(() => {
+        if (error) {
+            const timer = setTimeout(() => setError(null), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [error]);
 
     // Redirect if not logged in
     useEffect(() => {
@@ -47,6 +65,7 @@ export const ProfilePage = () => {
         verifiedId: !!data.nationalIdNumber,
         nationalIdNumber: data.nationalIdNumber,
         driversLicenseUrl: data.driversLicenseUrl,
+        driversLicenseNumber: data.driversLicenseNumber,
         driversLicenseExpiry: data.driversLicenseExpiry,
         gender: data.gender,
         dateOfBirth: data.dateOfBirth,
@@ -57,7 +76,6 @@ export const ProfilePage = () => {
     // Fetch profile data
     const fetchProfileData = useCallback(async () => {
         if (!auth?.user?.id) return;
-
         try {
             setLoading(true);
             setError(null);
@@ -67,7 +85,7 @@ export const ProfilePage = () => {
             setUserDetails(transformToUserDetails(data));
         } catch (err: any) {
             console.error('Failed to fetch profile:', err);
-            setError(err.response?.data?.error || 'Failed to load profile');
+            setError(err.response?.data?.message || err.response?.data?.error || 'Failed to load profile');
         } finally {
             setLoading(false);
         }
@@ -80,35 +98,30 @@ export const ProfilePage = () => {
     // Handle profile picture upload
     const handleProfilePictureUpload = async (file: File) => {
         if (!auth?.user?.id) return;
-
         const formData = new FormData();
         formData.append('profileImage', file);
-
         try {
             setUploadingImage(true);
             const response = await api.post(`/api/users/${auth.user.id}/profile/image`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-
             if (response.data?.profileImageUrl) {
                 setProfileData(prev => prev ? { ...prev, profileImageUrl: response.data.profileImageUrl } : null);
+                setSuccessMessage('Profile picture updated successfully');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to upload profile picture:', err);
-            alert('Failed to upload profile picture. Please try again.');
+            setError(err.response?.data?.message || 'Failed to upload profile picture');
         } finally {
             setUploadingImage(false);
         }
     };
 
-    // Handle profile save - NOW INCLUDES ALL FIELDS
+    // Handle profile save – shows success/error messages
     const handleSaveProfile = async (newDetails: UserDetails) => {
         if (!auth?.user?.id) return;
-
         try {
             setSaving(true);
-
-            // Send ALL fields to the backend
             const updateData = {
                 firstName: newDetails.firstName,
                 lastName: newDetails.lastName,
@@ -124,18 +137,17 @@ export const ProfilePage = () => {
                 driversLicenseExpiry: newDetails.driversLicenseExpiry,
                 notificationPreferences: newDetails.notificationPreferences,
             };
-
             const response = await api.put('/api/profile', updateData);
-
             if (response.data?.user || response.data) {
                 const updatedData = response.data.user || response.data;
                 setProfileData(updatedData);
                 setUserDetails(transformToUserDetails(updatedData));
                 setIsEditing(false);
+                setSuccessMessage(response.data.message || 'Profile updated successfully');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to update profile:', err);
-            alert('Failed to update profile. Please try again.');
+            setError(err.response?.data?.message || 'Failed to update profile');
         } finally {
             setSaving(false);
         }
@@ -166,8 +178,8 @@ export const ProfilePage = () => {
         );
     }
 
-    // Error state
-    if (error || !profileData || !userDetails) {
+    // Error state (only when no profile data and error is set)
+    if ((error && !profileData) || (!profileData && !userDetails)) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col">
                 <Navbar />
@@ -190,21 +202,21 @@ export const ProfilePage = () => {
         );
     }
 
-    // Transform profile data for ProfileHeader
+    // Transform profile data for ProfileHeader (safe because we have profileData and userDetails)
     const headerUser = {
-        name: `${profileData.firstName ?? ''} ${profileData.lastName ?? ''}`.trim() || 'User',
-        initials: `${profileData.firstName?.[0] ?? ''}${profileData.lastName?.[0] ?? ''}`.toUpperCase() || 'U',
-        location: profileData.address || 'Location not set',
-        memberSince: userDetails.memberSince,
-        responseRate: userDetails.responseRate,
-        trips: userDetails.trips,
-        reviews: userDetails.reviews,
-        rating: userDetails.rating,
-        verifiedEmail: userDetails.verifiedEmail,
-        verifiedPhone: userDetails.verifiedPhone,
-        verifiedLicense: userDetails.verifiedLicense,
-        verifiedId: userDetails.verifiedId,
-        profileImageUrl: profileData.profileImageUrl || '',
+        name: `${profileData!.firstName ?? ''} ${profileData!.lastName ?? ''}`.trim() || 'User',
+        initials: `${profileData!.firstName?.[0] ?? ''}${profileData!.lastName?.[0] ?? ''}`.toUpperCase() || 'U',
+        location: profileData!.address || 'Location not set',
+        memberSince: userDetails!.memberSince,
+        responseRate: userDetails!.responseRate,
+        trips: userDetails!.trips,
+        reviews: userDetails!.reviews,
+        rating: userDetails!.rating,
+        verifiedEmail: userDetails!.verifiedEmail,
+        verifiedPhone: userDetails!.verifiedPhone,
+        verifiedLicense: userDetails!.verifiedLicense,
+        verifiedId: userDetails!.verifiedId,
+        profileImageUrl: profileData!.profileImageUrl || '',
         onProfileImageUpload: handleProfilePictureUpload,
         uploadingImage,
     };
@@ -214,6 +226,31 @@ export const ProfilePage = () => {
             <Navbar />
             <main className="flex-grow pt-24 pb-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* Toast / Banner for success and error messages */}
+                    {(successMessage || error) && (
+                        <div className={`mb-6 rounded-lg p-4 flex items-center justify-between shadow-md ${
+                            successMessage ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                        }`}>
+                            <div className="flex items-center gap-2">
+                                {successMessage ? (
+                                    <CheckCircle className="h-5 w-5 text-green-600" />
+                                ) : (
+                                    <AlertCircle className="h-5 w-5 text-red-600" />
+                                )}
+                                <span className={successMessage ? 'text-green-800' : 'text-red-800'}>
+                                    {successMessage || error}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => { setSuccessMessage(null); setError(null); }}
+                                className="text-gray-500 hover:text-gray-700"
+                                aria-label="Dismiss"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                    )}
+
                     <div className="flex flex-col lg:flex-row gap-8 items-start">
                         {/* Left Sidebar */}
                         <div className="w-full lg:w-80 flex-shrink-0 lg:sticky lg:top-24">
@@ -224,13 +261,15 @@ export const ProfilePage = () => {
                         <div className="w-full lg:flex-1">
                             <ProfileTabs
                                 user={headerUser}
-                                details={userDetails}
+                                details={userDetails!}
                                 activeTab={activeTab}
                                 onTabChange={setActiveTab}
                                 isEditing={isEditing}
                                 onToggleEdit={() => setIsEditing(!isEditing)}
                                 onSaveProfile={handleSaveProfile}
                                 saveLoading={saving}
+                                onShowSuccess={setSuccessMessage}
+                                onShowError={setError}
                             />
                         </div>
                     </div>
