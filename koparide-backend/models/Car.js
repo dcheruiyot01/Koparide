@@ -25,6 +25,7 @@ const Car = sequelize.define('Car', {
     },
 
     pricePerDay: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    driverFeePerDay: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
 
     classification: {
         type: DataTypes.STRING,
@@ -35,14 +36,14 @@ const Car = sequelize.define('Car', {
         }
     },
 
-    // ✅ New feature fields
+    // Existing feature fields
     seats: { type: DataTypes.INTEGER, allowNull: false },
     fuelType: { type: DataTypes.STRING, allowNull: false },
     location: { type: DataTypes.STRING, allowNull: true },
-    mpg: { type: DataTypes.DECIMAL(5, 2), allowNull: true }, // fuel efficiency
+    mpg: { type: DataTypes.DECIMAL(5, 2), allowNull: true },
     transmission: { type: DataTypes.STRING, allowNull: true },
     cruiseControl: { type: DataTypes.BOOLEAN, defaultValue: false },
-    cc: { type: DataTypes.INTEGER, allowNull: true }, // engine capacity
+    cc: { type: DataTypes.INTEGER, allowNull: true },
     insurance_url: { type: DataTypes.STRING, allowNull: true },
     logbook_url: { type: DataTypes.STRING, allowNull: true },
     status: {
@@ -62,6 +63,25 @@ const Car = sequelize.define('Car', {
         references: { model: 'Users', key: 'id' },
         onDelete: 'SET NULL',
         onUpdate: 'CASCADE'
+    },
+
+    // ========== NEW FIELDS ==========
+    rentalType: {
+        type: DataTypes.ENUM('self_drive', 'with_driver'),
+        allowNull: false,
+        defaultValue: 'self_drive'
+    },
+    otherRules: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        validate: {
+            len: [0, 1000] // optional: limit to 1000 characters
+        }
+    },
+    termsAccepted: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     }
 }, {
     tableName: 'cars',

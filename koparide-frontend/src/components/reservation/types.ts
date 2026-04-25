@@ -27,6 +27,8 @@ export interface Car {
     model: string;
     year: number;
     pricePerDay: string;
+    driverFeePerDay?: number;        // zero or positive number
+    rentalType?: 'self_drive' | 'with_driver';
     classification: string;
     fuelType: string;
     status: string;

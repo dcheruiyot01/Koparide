@@ -21,7 +21,10 @@ export interface Car {
     rented_to: number | null;
     createdAt: string;
     updatedAt: string;
-
+    driverFeePerDay?: number;
+    rentalType?: 'self_drive' | 'with_driver';
+    otherRules?: string;
+    termsAccepted?: boolean;
     // Associations
     imagesList: {
         id: number;

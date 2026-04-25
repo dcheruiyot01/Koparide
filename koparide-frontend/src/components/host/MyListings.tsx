@@ -1,6 +1,6 @@
 // components/host/MyListings.tsx
 import type { HostCar } from '../../types/car.ts';
-import { Star, MapPin, Pencil, Trash2, Car } from 'lucide-react';
+import { Star, MapPin, Pencil, Trash2, Car, User } from 'lucide-react';
 
 interface MyListingsProps {
     cars: HostCar[];
@@ -63,6 +63,12 @@ export const MyListings = ({
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-600';
 
+                // Rental type details
+                const rentalType = (car as any).rentalType || 'self_drive';
+                const driverFee = (car as any).driverFeePerDay ?? 0;
+                const basePrice = Number(car.pricePerDay);
+                const totalPrice = rentalType === 'with_driver' ? basePrice + driverFee : basePrice;
+
                 return (
                     <div
                         key={car.id}
@@ -76,7 +82,6 @@ export const MyListings = ({
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                                 onError={(e) => {
-                                    // Fallback if the URL fails to load
                                     (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
                                 }}
                             />
@@ -86,6 +91,13 @@ export const MyListings = ({
                             >
                                 {statusText}
                             </div>
+                            {/* Rental Type Badge (if with driver) */}
+                            {rentalType === 'with_driver' && (
+                                <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    With driver
+                                </div>
+                            )}
                         </div>
 
                         {/* Details */}
@@ -94,11 +106,16 @@ export const MyListings = ({
                                 <h3 className="font-bold text-gray-900 truncate pr-2">
                                     {displayName}
                                 </h3>
-                                <div className="flex items-baseline whitespace-nowrap">
+                                <div className="flex flex-col items-end whitespace-nowrap">
                                     <span className="font-bold text-gray-900">
-                                        Ksh {car.pricePerDay}
+                                        Ksh {totalPrice}
                                     </span>
-                                    <span className="text-gray-500 text-sm ml-1">/day</span>
+                                    <span className="text-gray-500 text-xs ml-1">/day</span>
+                                    {rentalType === 'with_driver' && driverFee > 0 && (
+                                        <span className="text-xs text-gray-400">
+                                            + Ksh {driverFee} driver fee
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 

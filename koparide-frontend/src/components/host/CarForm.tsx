@@ -16,6 +16,12 @@ type CarFormData = Omit<HostCar, 'id' | 'rating' | 'trips'> & {
     images: (File | string)[];
     logbook_url?: File | string | null;
     insurance_url?: File | string | null;
+    rentalType: 'self_drive' | 'with_driver';
+    otherRules: string;
+    termsAccepted: boolean;
+    // Database fields – stored separately
+    pricePerDay: number;        // base price (car only)
+    driverFeePerDay: number;    // extra driver fee (0 if self-drive)
 };
 
 const getInitialFormState = (): CarFormData => ({
@@ -28,6 +34,7 @@ const getInitialFormState = (): CarFormData => ({
     transmission: 'automatic',
     cruiseControl: false,
     pricePerDay: 0,
+    driverFeePerDay: 0,
     location: '',
     insurance_url: '',
     logbook_url: '',
@@ -42,19 +49,22 @@ const getInitialFormState = (): CarFormData => ({
     mpg: undefined,
     description: '',
     images: [],
+    rentalType: 'self_drive',
+    otherRules: '',
+    termsAccepted: false,
 });
 
 const CLASSIFICATIONS = ['SUV', 'Sedan', 'Saloon', 'Pickup', 'Truck', 'Hatchback', 'Van', 'Coupe', 'Convertible'];
 const SEAT_OPTIONS = [2, 4, 5, 6, 7, 8];
 const FUEL_TYPES = ['gas', 'diesel', 'hybrid', 'electric'];
-const REQUIRED_FIELDS: (keyof CarFormData)[] = ['make', 'model', 'year', 'pricePerDay', 'location', 'images'];
+const REQUIRED_FIELDS: (keyof CarFormData)[] = ['make', 'model', 'year', 'pricePerDay', 'location', 'images', 'termsAccepted'];
 
 const fieldLabels: Record<string, string> = {
     make: 'Make',
     model: 'Model',
     year: 'Year',
     classification: 'Classification',
-    pricePerDay: 'Price per day',
+    pricePerDay: 'Base price per day',
     location: 'Location',
     images: 'Images',
     transmission: 'Transmission',
@@ -67,6 +77,9 @@ const fieldLabels: Record<string, string> = {
     status: 'Status',
     logbook_url: 'Car Logbook',
     insurance_url: 'Car Insurance',
+    rentalType: 'Rental type',
+    otherRules: 'Other rules',
+    termsAccepted: 'Terms and conditions',
 };
 
 export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
@@ -99,11 +112,21 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
     useEffect(() => {
         if (editingCar) {
             const existingImages = editingCar.imagesList?.map((img) => img.url) ?? [];
+            // Read the rental type and driver fee from the car object
+            const rentalType = (editingCar as any).rentalType || 'self_drive';
+            const driverFee = (editingCar as any).driverFeePerDay ?? 0;
+            // pricePerDay is the base price (car only)
+            const basePrice = Number(editingCar.pricePerDay);
             setFormData({
                 ...editingCar,
                 images: existingImages,
                 logbook_url: editingCar.logbook_url || null,
                 insurance_url: editingCar.insurance_url || null,
+                rentalType: rentalType,
+                otherRules: (editingCar as any).otherRules || '',
+                termsAccepted: (editingCar as any).termsAccepted || false,
+                pricePerDay: basePrice,
+                driverFeePerDay: driverFee,
             });
             setImagePreviews(existingImages);
         } else {
@@ -138,9 +161,12 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         if (type === 'checkbox') {
             const checked = (e.target as HTMLInputElement).checked;
             setFormData((prev) => ({ ...prev, [name]: checked }));
+            if (name === 'termsAccepted' && errors.termsAccepted) {
+                setErrors((prev) => ({ ...prev, termsAccepted: false }));
+            }
             return;
         }
-        const numericFields = ['year', 'pricePerDay', 'seats', 'mpg', 'cc'];
+        const numericFields = ['year', 'pricePerDay', 'driverFeePerDay', 'seats', 'mpg', 'cc'];
         setFormData((prev) => ({
             ...prev,
             [name]: numericFields.includes(name) ? (value === '' ? undefined : Number(value)) : value,
@@ -153,18 +179,28 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         const value = formData[field];
         let hasError = false;
         if (REQUIRED_FIELDS.includes(field)) {
-            if (value === undefined || value === '' || value === 0) hasError = true;
+            if (field === 'termsAccepted') {
+                hasError = !value;
+            } else if (value === undefined || value === '' || value === 0) {
+                hasError = true;
+            }
             if (field === 'year' && (value as number) < 1900) hasError = true;
             if (field === 'pricePerDay' && (value as number) <= 0) hasError = true;
         }
         setErrors((prev) => ({ ...prev, [field]: hasError }));
     };
 
+    // For display only – total price per day (base + optional driver fee)
+    const getTotalPrice = useCallback(() => {
+        const base = formData.pricePerDay || 0;
+        const fee = formData.rentalType === 'with_driver' ? (formData.driverFeePerDay || 0) : 0;
+        return base + fee;
+    }, [formData.pricePerDay, formData.driverFeePerDay, formData.rentalType]);
+
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
 
-        // Validate each file
         const validFiles: File[] = [];
         for (const file of files) {
             if (!file.type.startsWith('image/')) {
@@ -186,7 +222,6 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
             ...prev,
             images: [...prev.images, ...validFiles],
         }));
-        // Clear any existing images error
         if (errors.images) setErrors((prev) => ({ ...prev, images: false }));
     };
 
@@ -234,7 +269,11 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         const newErrors: Record<string, boolean> = {};
         for (const field of REQUIRED_FIELDS) {
             const value = formData[field];
-            if (value === undefined || value === '' || value === 0) newErrors[field] = true;
+            if (field === 'termsAccepted') {
+                if (!value) newErrors[field] = true;
+            } else if (value === undefined || value === '' || value === 0) {
+                newErrors[field] = true;
+            }
         }
         if (formData.year < 1900 || formData.year > new Date().getFullYear() + 1) newErrors.year = true;
         if (formData.pricePerDay <= 0) newErrors.pricePerDay = true;
@@ -256,40 +295,53 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         try {
             const payload = new FormData();
 
-            // Append all text fields (skip file fields)
-            const excludeFields: (keyof CarFormData)[] = ['images', 'logbook_url', 'insurance_url', 'imagesList'];
-            for (const [key, value] of Object.entries(formData)) {
-                if (excludeFields.includes(key as keyof CarFormData)) continue;
+            // Send both price fields separately (base price and driver fee)
+            const fieldsToSend = {
+                make: formData.make,
+                model: formData.model,
+                year: formData.year,
+                classification: formData.classification,
+                pricePerDay: formData.pricePerDay,           // base price
+                driverFeePerDay: formData.rentalType === 'with_driver' ? formData.driverFeePerDay : 0,
+                rentalType: formData.rentalType,
+                otherRules: formData.otherRules,
+                termsAccepted: formData.termsAccepted,
+                location: formData.location,
+                transmission: formData.transmission,
+                seats: formData.seats,
+                fuelType: formData.fuelType,
+                mpg: formData.mpg,
+                cc: formData.cc,
+                cruiseControl: formData.cruiseControl,
+                description: formData.description,
+                status: formData.status,
+            };
+            for (const [key, value] of Object.entries(fieldsToSend)) {
                 if (value !== undefined && value !== null) {
                     payload.append(key, String(value));
                 }
             }
 
-            // Append existing image URLs (for updates)
+            // Image handling (existing and new)
             const existingImageUrls = formData.images.filter(img => typeof img === 'string') as string[];
             if (existingImageUrls.length) {
                 payload.append('existingImages', JSON.stringify(existingImageUrls));
             }
-
-            // Append new image files (field name 'images')
             const newImageFiles = formData.images.filter(img => img instanceof File) as File[];
             for (const file of newImageFiles) {
                 payload.append('images', file);
             }
 
-            // Append logbook file
+            // Logbook and insurance
             if (formData.logbook_url instanceof File) {
                 payload.append('logbook', formData.logbook_url);
             }
-
-            // Append insurance file
             if (formData.insurance_url instanceof File) {
                 payload.append('insurance', formData.insurance_url);
             }
 
             const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
             let response;
-
             if (editingCar) {
                 response = await api.put(`/api/cars/${editingCar.id}`, payload, config);
             } else {
@@ -356,6 +408,23 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                         aria-invalid={error}
                         className={`${inputClasses(name)} resize-none`}
                     />
+                ) : type === 'radio' ? (
+                    <div className="flex gap-6 mt-1">
+                        {options?.map((opt) => (
+                            <label key={opt.value} className="flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name={name}
+                                    value={opt.value}
+                                    checked={value === opt.value}
+                                    onChange={handleChange}
+                                    onBlur={() => handleBlur(name)}
+                                    className="w-4 h-4 text-[#00A699]"
+                                />
+                                <span className="text-sm text-gray-700">{opt.label}</span>
+                            </label>
+                        ))}
+                    </div>
                 ) : (
                     <input
                         type={type}
@@ -422,6 +491,8 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
         );
     };
 
+    const totalPrice = getTotalPrice();
+
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
@@ -447,7 +518,18 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                     )}
 
                     <div className="space-y-6">
-                        {/* Basic Information */}
+                        {/* Rental Type (moved above Basic Information) */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Rental Options</h3>
+                            <div className="bg-gray-50/50 rounded-xl p-6">
+                                {renderField('rentalType', 'Rental type', 'radio', [
+                                    { value: 'self_drive', label: 'Self‑drive' },
+                                    { value: 'with_driver', label: 'With driver' },
+                                ])}
+                            </div>
+                        </div>
+
+                        {/* Basic Information (includes price + driver fee input) */}
                         <div>
                             <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
                             <div className="bg-gray-50/50 rounded-xl p-6">
@@ -456,7 +538,34 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                                     {renderField('model', 'Model')}
                                     {renderField('year', 'Year', 'number')}
                                     {renderField('classification', 'Classification', 'select', CLASSIFICATIONS)}
-                                    {renderField('pricePerDay', 'Price/Day (Ksh)', 'number')}
+                                    <div>
+                                        {renderField('pricePerDay', 'Base price per day (Ksh)', 'number')}
+                                        {formData.rentalType === 'with_driver' && (
+                                            <div className="mt-3">
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Driver fee per day (Ksh)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    name="driverFeePerDay"
+                                                    value={formData.driverFeePerDay}
+                                                    onChange={handleChange}
+                                                    onBlur={() => handleBlur('driverFeePerDay')}
+                                                    min="0"
+                                                    step="50"
+                                                    className={inputClasses('driverFeePerDay')}
+                                                />
+                                                {errors.driverFeePerDay && touched.driverFeePerDay && (
+                                                    <p className="text-red-500 text-xs mt-1">Driver fee is invalid</p>
+                                                )}
+                                                <div className="mt-2 text-sm text-gray-600">
+                                                    <span className="font-semibold text-[#00A699]">
+                                                        Total per day (base + driver): Ksh {totalPrice}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -497,6 +606,14 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                                         </label>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Other Rules */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Other Rules</h3>
+                            <div className="bg-gray-50/50 rounded-xl p-6">
+                                {renderField('otherRules', 'Additional rules for renters', 'textarea')}
                             </div>
                         </div>
 
@@ -569,6 +686,32 @@ export function CarForm({ editingCar, onSave, onCancel }: CarFormProps) {
                                 removeInsurance,
                                 insuranceInputRef
                             )}
+                        </div>
+
+                        {/* Terms and Conditions */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-4">Terms & Conditions</h3>
+                            <div className="bg-gray-50/50 rounded-xl p-6">
+                                <div className="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        name="termsAccepted"
+                                        checked={formData.termsAccepted}
+                                        onChange={handleChange}
+                                        className="mt-1 w-4 h-4 text-[#00A699] rounded border-gray-300 focus:ring-[#00A699]"
+                                    />
+                                    <label className="text-sm text-gray-700">
+                                        I confirm that all information provided is accurate, and I agree to the{' '}
+                                        <a href="/terms" target="_blank" className="text-[#00A699] hover:underline">
+                                            Terms and Conditions
+                                        </a>{' '}
+                                        of WheelAway.
+                                    </label>
+                                </div>
+                                {errors.termsAccepted && touched.termsAccepted && (
+                                    <p className="text-red-500 text-xs mt-2">You must accept the terms and conditions to list your car.</p>
+                                )}
+                            </div>
                         </div>
 
                         {/* Status */}

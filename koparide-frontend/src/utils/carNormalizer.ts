@@ -14,6 +14,10 @@ export interface ApiCar {
     cc?: number;
     mpg?: number;
     pricePerDay: string | number;
+    driverFeePerDay?: string | number;   // new field
+    rentalType?: 'self_drive' | 'with_driver'; // new field
+    otherRules?: string;                  // new field
+    termsAccepted?: boolean;              // new field
     location?: string;
     status?: string;
     insurance_url: string | null;
@@ -43,6 +47,14 @@ export function normalizeCar(apiCar: ApiCar): HostCar {
         pricePerDay: typeof apiCar.pricePerDay === 'string'
             ? parseFloat(apiCar.pricePerDay)
             : apiCar.pricePerDay ?? 0,
+        driverFeePerDay: apiCar.driverFeePerDay !== undefined
+            ? (typeof apiCar.driverFeePerDay === 'string'
+                ? parseFloat(apiCar.driverFeePerDay)
+                : apiCar.driverFeePerDay)
+            : 0,
+        rentalType: apiCar.rentalType || 'self_drive',
+        otherRules: apiCar.otherRules || '',
+        termsAccepted: apiCar.termsAccepted || false,
         location: apiCar.location,
         status: apiCar.status,
         logbook_url: apiCar.logbook_url,

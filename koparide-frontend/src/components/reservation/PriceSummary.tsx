@@ -1,10 +1,12 @@
+// components/reservation/PriceSummary.tsx
 import React, { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
 import type { PromoApplied, RateType } from './types';
 import { TAX_RATE } from './types';
 
 interface PriceSummaryProps {
-    basePrice: number;
+    basePrice: number;           // total car + driver cost for the trip (before protection, discount, tax)
+    driverFeeTotal?: number;     // total driver fee for the trip (0 if self‑drive)
     protectionCost: number;
     discountAmount: number;
     taxAmount: number;
@@ -21,6 +23,7 @@ const formatCurrency = (amount: number): string => {
 
 export const PriceSummary: React.FC<PriceSummaryProps> = ({
                                                               basePrice,
+                                                              driverFeeTotal = 0,
                                                               protectionCost,
                                                               discountAmount,
                                                               taxAmount,
@@ -34,6 +37,9 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
     const [promoError, setPromoError] = useState<string | null>(null);
     const [applying, setApplying] = useState(false);
 
+    // Car only portion (non‑negative)
+    const carOnlyTotal = Math.max(0, basePrice - driverFeeTotal);
+
     const handleApplyPromo = async () => {
         if (!promoCode.trim()) {
             setPromoError("Please enter a promo code");
@@ -45,7 +51,7 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
 
         try {
             await onApplyPromo(promoCode);
-            setPromoCode(""); // Clear input on success
+            setPromoCode("");
         } catch (error: any) {
             setPromoError(error.message);
         } finally {
@@ -58,18 +64,31 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Price Summary</h3>
 
             <div className="space-y-2 text-sm">
+                {/* Car only */}
                 <div className="flex justify-between">
                     <span className="text-gray-600">
-                        Base price ({days} days)
+                        Base price (car only, {days} days)
                     </span>
-                    <span className="text-gray-900">{formatCurrency(basePrice)}</span>
+                    <span className="text-gray-900">{formatCurrency(carOnlyTotal)}</span>
                 </div>
 
+                {/* Driver fee (if any) */}
+                {driverFeeTotal > 0 && (
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">
+                            Driver fee ({days} days)
+                        </span>
+                        <span className="text-gray-900">{formatCurrency(driverFeeTotal)}</span>
+                    </div>
+                )}
+
+                {/* Protection plan */}
                 <div className="flex justify-between">
                     <span className="text-gray-600">Protection plan</span>
                     <span className="text-gray-900">{formatCurrency(protectionCost)}</span>
                 </div>
 
+                {/* Discount */}
                 {discountAmount > 0 && (
                     <div className="flex justify-between text-green-600">
                         <span>
@@ -78,18 +97,20 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
                                 <span className="text-xs ml-1">(Promo: {promoApplied.code})</span>
                             )}
                             {!promoApplied && selectedRate === "nonrefundable" && (
-                                <span className="text-xs ml-1">(Non-refundable rate)</span>
+                                <span className="text-xs ml-1">(Non‑refundable rate)</span>
                             )}
                         </span>
                         <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                 )}
 
+                {/* Sales tax */}
                 <div className="flex justify-between">
                     <span className="text-gray-600">Sales tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
                     <span className="text-gray-900">{formatCurrency(taxAmount)}</span>
                 </div>
 
+                {/* Total */}
                 <div className="border-t pt-3 mt-3">
                     <div className="flex justify-between items-center">
                         <div>
@@ -103,7 +124,7 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
                 </div>
             </div>
 
-            {/* Promo code */}
+            {/* Promo code input */}
             {!promoApplied && (
                 <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -141,6 +162,7 @@ export const PriceSummary: React.FC<PriceSummaryProps> = ({
                 </div>
             )}
 
+            {/* Applied promo confirmation */}
             {promoApplied && (
                 <div className="mt-4 p-3 bg-green-50 rounded-lg">
                     <p className="text-xs text-green-700 flex items-center gap-1">

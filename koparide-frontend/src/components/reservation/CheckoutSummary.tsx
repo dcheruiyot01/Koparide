@@ -1,12 +1,13 @@
+// components/reservation/CheckoutSummary.tsx
 import React, { useState } from 'react';
-import { CreditCard, Smartphone, Lock, CheckCircle } from 'lucide-react';
+import { Smartphone, Lock, CheckCircle } from 'lucide-react';
 import type { PromoApplied, RateType } from './types';
 import { TAX_RATE } from './types';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 interface CheckoutSummaryProps {
     // Price summary props
-    basePrice: number;
+    basePrice: number;            // total car + driver cost for the trip (before protection, discount, tax)
+    driverFeeTotal?: number;      // total driver fee for the trip (0 if self‑drive)
     protectionCost: number;
     discountAmount: number;
     taxAmount: number;
@@ -20,10 +21,9 @@ interface CheckoutSummaryProps {
     onPaymentMethodChange: (method: 'card' | 'mpesa', details?: any) => void;
     termsAgreed: boolean;
     onTermsChange: (checked: boolean) => void;
-    termsError?: boolean; // validation error for terms
+    termsError?: boolean;
 
-    // Props lifted from parent
-    selectedMethod?: 'card' | 'mpesa';
+    // Props lifted from parent (only M‑Pesa now)
     mpesaPhoneNumber?: string;
     onMpesaPhoneChange?: (phone: string) => void;
 }
@@ -33,6 +33,7 @@ const formatCurrency = (amount: number): string => `Ksh ${amount.toFixed(2)}`;
 export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Promise<string | null> }, CheckoutSummaryProps>(
     ({
          basePrice,
+         driverFeeTotal = 0,
          protectionCost,
          discountAmount,
          taxAmount,
@@ -45,87 +46,43 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
          termsAgreed,
          onTermsChange,
          termsError,
-         selectedMethod: controlledSelectedMethod,
          mpesaPhoneNumber: controlledMpesaPhoneNumber,
          onMpesaPhoneChange,
      }, ref) => {
 
-        const stripe = useStripe();
-        const elements = useElements();
-
-        // State for card errors
-        const [cardError, setCardError] = useState<string | null>(null);
-        const [cardComplete, setCardComplete] = useState(false);
-
-        // Payment method internal state (use controlled props if provided, otherwise internal state)
-        const [internalSelectedMethod, setInternalSelectedMethod] = useState<'card' | 'mpesa'>('card');
+        // Internal state for phone number (if not controlled)
         const [internalPhoneNumber, setInternalPhoneNumber] = useState('');
-
-        // Use controlled props if provided, otherwise use internal state
-        const selectedMethod = controlledSelectedMethod !== undefined ? controlledSelectedMethod : internalSelectedMethod;
         const phoneNumber = controlledMpesaPhoneNumber !== undefined ? controlledMpesaPhoneNumber : internalPhoneNumber;
 
-        // Promo code internal state
+        // Promo code state
         const [promoCode, setPromoCode] = useState('');
         const [promoError, setPromoError] = useState<string | null>(null);
         const [applying, setApplying] = useState(false);
 
-        // Handle card element changes
-        const handleCardChange = (event: any) => {
-            setCardError(event.error ? event.error.message : null);
-            setCardComplete(event.complete);
-        };
+        const carOnlyTotal = Math.max(0, basePrice - driverFeeTotal);
 
-        // Create payment method for Stripe
-        const createPaymentMethod = async (): Promise<string | null> => {
-            if (!stripe || !elements) {
-                setCardError('Stripe not initialized');
-                return null;
-            }
-            const cardElement = elements.getElement(CardElement);
-            if (!cardElement) return null;
-
-            const { error, paymentMethod } = await stripe.createPaymentMethod({
-                type: 'card',
-                card: cardElement,
-            });
-
-            if (error) {
-                setCardError(error.message);
-                return null;
-            }
-            return paymentMethod.id;
-        };
-
-        // Expose method to parent via ref
+        // Card payment method is disabled – this ref method is never called.
+        // We provide a dummy implementation to avoid breaking the parent component.
         React.useImperativeHandle(ref, () => ({
-            getCardPaymentMethod: createPaymentMethod,
+            getCardPaymentMethod: async () => {
+                // Card payments are not supported; always return null.
+                return null;
+            },
         }));
 
-        const handleMethodChange = (method: 'card' | 'mpesa') => {
-            if (controlledSelectedMethod === undefined) {
-                setInternalSelectedMethod(method);
-            }
-
-            if (method === 'card') {
-                onPaymentMethodChange('card');
-            } else {
-                onPaymentMethodChange('mpesa', { phoneNumber });
-            }
-        };
+        // Always use M‑Pesa – notify parent immediately on mount and when phone number changes
+        React.useEffect(() => {
+            onPaymentMethodChange('mpesa', { phoneNumber });
+        }, [phoneNumber, onPaymentMethodChange]);
 
         const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             const value = e.target.value.replace(/\D/g, '');
-
             if (onMpesaPhoneChange) {
                 onMpesaPhoneChange(value);
             } else {
                 setInternalPhoneNumber(value);
             }
-
-            if (selectedMethod === 'mpesa') {
-                onPaymentMethodChange('mpesa', { phoneNumber: value });
-            }
+            // Parent will be notified via the useEffect dependency
         };
 
         const handleApplyPromo = async () => {
@@ -147,7 +104,6 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
 
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-                {/* Header with secure badge */}
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">Checkout</h3>
                     <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -159,8 +115,12 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
                 {/* Price Breakdown */}
                 <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                        <span className="text-gray-600">Base price ({days} days)</span>
-                        <span className="text-gray-900">{formatCurrency(basePrice)}</span>
+                        <span className="text-gray-600">Base price (car only, {days} days)</span>
+                        <span className="text-gray-900">{formatCurrency(carOnlyTotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">Driver fee ({days} days)</span>
+                        <span className="text-gray-900">{formatCurrency(driverFeeTotal)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-600">Protection plan</span>
@@ -181,28 +141,21 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
                         </div>
                     )}
                     <div className="flex justify-between">
-                        <span className="text-gray-600">Sales tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
+                        <span className="text-gray-600">Tax ({(TAX_RATE * 100).toFixed(2)}%)</span>
                         <span className="text-gray-900">{formatCurrency(taxAmount)}</span>
                     </div>
-                    <div className="border-t pt-3 mt-3">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <p className="font-semibold text-gray-900">Total</p>
-                                <p className="text-xs text-gray-500">Includes taxes & fees</p>
-                            </div>
-                            <div className="text-2xl font-bold text-[#00A699]">
-                                {formatCurrency(totalAmount)}
-                            </div>
+                    <div className="pt-3 mt-3">
+                        <div className="flex justify-between pt-2 border-t">
+                            <span className="font-medium text-gray-900">Total (includes taxes & fees)</span>
+                            <span className="font-bold text-[#00A699]">{formatCurrency(totalAmount)}</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Promo Code */}
+                {/* Promo code section */}
                 {!promoApplied ? (
                     <div className="pt-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Promo code
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Promo code</label>
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -240,115 +193,42 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
                     </div>
                 )}
 
-                {/* Payment Method Selection */}
+                {/* M‑Pesa payment method (only option) */}
                 <div className="space-y-3 pt-2">
                     <h4 className="text-sm font-semibold text-gray-900">Payment method</h4>
-
-                    {/* Credit / Debit card option */}
-                    <label className={`flex items-start p-4 border rounded-lg cursor-pointer transition ${
-                        selectedMethod === 'card' ? 'border-[#00A699] bg-[#00A699]/5' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                        <input
-                            type="radio"
-                            name="paymentMethod"
-                            value="card"
-                            checked={selectedMethod === 'card'}
-                            onChange={() => handleMethodChange('card')}
-                            className="mt-1 mr-3 text-[#00A699] focus:ring-[#00A699]"
-                        />
-                        <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <CreditCard className="w-5 h-5 text-gray-600" />
-                                    <span className="font-medium text-gray-900">Credit / Debit card</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <span className="text-xs font-semibold text-gray-500">Visa</span>
-                                    <span className="text-xs font-semibold text-gray-500">Mastercard</span>
-                                    <span className="text-xs font-semibold text-gray-500">Amex</span>
-                                    <span className="text-xs font-semibold text-gray-500">Discover</span>
-                                </div>
-                            </div>
-                            {selectedMethod === 'card' && (
-                                <div className="mt-4">
-                                    <div className="p-3 bg-white border border-gray-200 rounded-lg">
-                                        <CardElement
-                                            options={{
-                                                style: {
-                                                    base: {
-                                                        fontSize: '16px',
-                                                        color: '#424770',
-                                                        '::placeholder': { color: '#aab7c4' },
-                                                    },
-                                                    invalid: { color: '#9e2146' },
-                                                },
-                                            }}
-                                            onChange={handleCardChange}
-                                        />
-                                    </div>
-                                    {cardError && (
-                                        <p className="text-xs text-red-600 mt-1">{cardError}</p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </label>
-
-                    {/* M-Pesa option */}
-                    <label
-                        className={`flex items-start p-4 border rounded-lg cursor-pointer transition ${
-                            selectedMethod === 'mpesa'
-                                ? 'border-[#00A699] bg-[#00A699]/5'
-                                : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                    >
-                        <input
-                            type="radio"
-                            name="paymentMethod"
-                            value="mpesa"
-                            checked={selectedMethod === 'mpesa'}
-                            onChange={() => handleMethodChange('mpesa')}
-                            className="mt-1 mr-3 text-[#00A699] focus:ring-[#00A699]"
-                        />
+                    <div className="flex items-start p-4 border rounded-lg border-[#00A699] bg-[#00A699]/5">
                         <div className="flex-1">
                             <div className="flex items-center gap-2">
                                 <Smartphone className="w-5 h-5 text-gray-600" />
                                 <span className="font-medium text-gray-900">M‑Pesa</span>
                             </div>
-                            {selectedMethod === 'mpesa' && (
-                                <div className="mt-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        M‑Pesa phone number
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        value={phoneNumber}
-                                        onChange={handlePhoneChange}
-                                        placeholder="254712345678"
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00A699] focus:border-transparent"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        You will receive an STK push prompt on this number.
-                                    </p>
-                                </div>
-                            )}
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    M‑Pesa phone number
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={phoneNumber}
+                                    onChange={handlePhoneChange}
+                                    placeholder="254712345678"
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00A699] focus:border-transparent"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    You will receive an STK push prompt on this number.
+                                </p>
+                            </div>
                         </div>
-                    </label>
+                    </div>
                 </div>
 
                 {/* Terms agreement */}
-                <div
-                    id="terms-section"
-                    className={`p-3 rounded ${termsError ? 'bg-red-50 border border-red-200' : ''}`}
-                >
+                <div id="terms-section" className={`p-3 rounded ${termsError ? 'bg-red-50 border border-red-200' : ''}`}>
                     <label className="flex items-center gap-2 text-sm">
                         <input
                             type="checkbox"
                             checked={termsAgreed}
                             onChange={(e) => onTermsChange(e.target.checked)}
-                            className={`rounded text-[#00A699] focus:ring-[#00A699] ${
-                                termsError ? 'border-red-500' : ''
-                            }`}
+                            className={`rounded text-[#00A699] focus:ring-[#00A699] ${termsError ? 'border-red-500' : ''}`}
                         />
                         <span className={`text-gray-600 ${termsError ? 'text-red-700' : ''}`}>
                             I agree to the{' '}
@@ -356,9 +236,7 @@ export const CheckoutSummary = React.forwardRef<{ getCardPaymentMethod: () => Pr
                             <button className="text-[#00A699] hover:underline">rental policy</button>
                         </span>
                     </label>
-                    {termsError && !termsAgreed && (
-                        <p className="text-xs text-red-600 mt-1">You must agree to the terms and policy.</p>
-                    )}
+                    {termsError && !termsAgreed && <p className="text-xs text-red-600 mt-1">You must agree to the terms and policy.</p>}
                 </div>
             </div>
         );

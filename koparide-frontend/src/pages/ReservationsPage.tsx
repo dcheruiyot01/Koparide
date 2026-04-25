@@ -31,9 +31,8 @@ export const ReservationPage: React.FC = () => {
     const checkoutSummaryRef = useRef<{ getCardPaymentMethod: () => Promise<string | null> }>(null);
     const auth = useContext(AuthContext);
 
-    // Validation errors state
+    // Validation errors state (only terms remains)
     const [validationErrors, setValidationErrors] = useState({
-        license: false,
         terms: false,
     });
 
@@ -45,13 +44,12 @@ export const ReservationPage: React.FC = () => {
 
     // UI states
     const [selectedRate] = useState<RateType>("nonrefundable");
-    const [selectedProtection, setSelectedProtection] = useState<ProtectionType>("standard");
+    const [selectedProtection, setSelectedProtection] = useState<ProtectionType>("none");
     const [promoApplied, setPromoApplied] = useState<PromoApplied | null>(null);
     const [selectedMethod, setSelectedMethod] = useState<'card' | 'mpesa'>('card');
     const [mpesaPhoneNumber, setMpesaPhoneNumber] = useState('');
 
-    // License & terms
-    const [licenseAcknowledged, setLicenseAcknowledged] = useState(false); // kept but will be ignored (no warning)
+    // Terms
     const [termsAgreed, setTermsAgreed] = useState(false);
 
     // License blocking
@@ -64,14 +62,40 @@ export const ReservationPage: React.FC = () => {
     const [paymentPending, setPaymentPending] = useState(false);
     const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
+
+
     // ==================== DERIVED PRICES ====================
-    const basePrice = useMemo(() => {
-        if (!car || !bookingState) return 0;
-        return Number(car.pricePerDay) * bookingState.days;
-    }, [car, bookingState]);
+    // Helper to ensure numeric values
+    const getBasePricePerDay = useCallback(() => {
+        if (!car) return 0;
+        return Number(car.pricePerDay);
+    }, [car]);
+
+    const getDriverFeePerDay = useCallback(() => {
+        if (!car) return 0;
+        if (car.rentalType !== 'with_driver') return 0;
+        return Number(car.driverFeePerDay ?? 0);
+    }, [car]);
+
+    const getTotalPricePerDay = useCallback(() => {
+        return getBasePricePerDay() + getDriverFeePerDay();
+    }, [getBasePricePerDay, getDriverFeePerDay]);
+
+    // Trip totals (numbers, not strings)
+    const carOnlyTotal = useMemo(() => {
+        if (!bookingState) return 0;
+        return getBasePricePerDay() * bookingState.days;
+    }, [bookingState, getBasePricePerDay]);
+
+    const driverTotal = useMemo(() => {
+        if (!bookingState) return 0;
+        return getDriverFeePerDay() * bookingState.days;
+    }, [bookingState, getDriverFeePerDay]);
+
+    const totalCarAndDriver = useMemo(() => carOnlyTotal + driverTotal, [carOnlyTotal, driverTotal]);
 
     const protectionCost = useMemo(() => PROTECTION_PRICES[selectedProtection], [selectedProtection]);
-    const subtotal = useMemo(() => basePrice + protectionCost, [basePrice, protectionCost]);
+    const subtotal = useMemo(() => totalCarAndDriver + protectionCost, [totalCarAndDriver, protectionCost]);
     const discountAmount = useMemo(() => promoApplied ? Math.min(promoApplied.discount, subtotal) : 0, [promoApplied, subtotal]);
     const taxAmount = useMemo(() => (subtotal - discountAmount) * TAX_RATE, [subtotal, discountAmount]);
     const totalAmount = useMemo(() => subtotal - discountAmount + taxAmount, [subtotal, discountAmount, taxAmount]);
@@ -82,9 +106,7 @@ export const ReservationPage: React.FC = () => {
         if (processing || paymentPending) return false;
         return true;
     }, [car, bookingState, termsAgreed, processing, paymentPending]);
-
     // ==================== EFFECTS ====================
-    // 1. Get booking state from location
     useEffect(() => {
         const state = location.state as BookingState;
         if (!state) {
@@ -97,7 +119,6 @@ export const ReservationPage: React.FC = () => {
         setBookingState(state);
     }, [location.state, id, navigate]);
 
-    // 2. Fetch car details
     useEffect(() => {
         if (!id) return;
         const controller = new AbortController();
@@ -119,6 +140,8 @@ export const ReservationPage: React.FC = () => {
                     model: raw.model || "Vehicle",
                     year: raw.year || new Date().getFullYear(),
                     pricePerDay: raw.pricePerDay || "0",
+                    driverFeePerDay: raw.driverFeePerDay ?? 0,
+                    rentalType: raw.rentalType || 'self_drive',
                     classification: raw.classification || "Standard",
                     fuelType: raw.fuelType || "Gasoline",
                     status: raw.status || "pending",
@@ -141,71 +164,43 @@ export const ReservationPage: React.FC = () => {
         return () => controller.abort();
     }, [id]);
 
-    // 3. Fetch user profile and validate license for the entire trip period
+    // License check
     useEffect(() => {
         const checkLicenseForTrip = async () => {
-            // Wait until we have the user and the booking dates
             if (!auth?.user?.id) return;
-            if (!bookingState?.endDate) return; // no trip end date yet
-
+            if (!bookingState?.endDate) return;
             try {
                 const response = await api.get('/api/profile');
                 const profile = response.data.user || response.data;
                 const expiry = profile?.driversLicenseExpiry;
-
-                // Case 1: No license on file
                 if (!expiry) {
                     setLicenseBlocked(true);
-                    setLicenseMessage(
-                        "You haven't added your driver's license information. " +
-                        "Please update your profile before booking a car."
-                    );
+                    setLicenseMessage("You haven't added your driver's license information. Please update your profile before booking a car.");
                     return;
                 }
-
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const expiryDate = new Date(expiry);
-                expiryDate.setHours(0, 0, 0, 0);
-                const tripEndDate = new Date(bookingState.endDate);
-                tripEndDate.setHours(0, 0, 0, 0);
-
-                // Case 2: License already expired
+                const today = new Date(); today.setHours(0,0,0,0);
+                const expiryDate = new Date(expiry); expiryDate.setHours(0,0,0,0);
+                const tripEndDate = new Date(bookingState.endDate); tripEndDate.setHours(0,0,0,0);
                 if (expiryDate < today) {
                     setLicenseBlocked(true);
-                    setLicenseMessage(
-                        `Your driver's license expired on ${expiryDate.toLocaleDateString()}. ` +
-                        "Please update it in your profile before booking."
-                    );
+                    setLicenseMessage(`Your driver's license expired on ${expiryDate.toLocaleDateString()}. Please update it in your profile before booking.`);
                     return;
                 }
-
-                // Case 3: License expires during the rental period
                 if (expiryDate < tripEndDate) {
                     setLicenseBlocked(true);
-                    setLicenseMessage(
-                        `Your driver's license will expire on ${expiryDate.toLocaleDateString()}, ` +
-                        "which is before your trip ends. Please update your license in your profile " +
-                        "before booking this trip."
-                    );
+                    setLicenseMessage(`Your driver's license will expire on ${expiryDate.toLocaleDateString()}, which is before your trip ends. Please update your license in your profile before booking this trip.`);
                     return;
                 }
-
-                // License is valid for the whole trip
                 setLicenseBlocked(false);
             } catch (err) {
                 console.error("Failed to check license:", err);
                 setLicenseBlocked(true);
-                setLicenseMessage(
-                    "Unable to verify your driver's license. Please update your profile and try again."
-                );
+                setLicenseMessage("Unable to verify your driver's license. Please update your profile and try again.");
             }
         };
-
         checkLicenseForTrip();
-    }, [auth?.user, bookingState]); // ← re‑run when user or trip dates change
+    }, [auth?.user, bookingState]);
 
-    // Cleanup polling on unmount
     useEffect(() => {
         return () => {
             if (pollingInterval) clearInterval(pollingInterval);
@@ -233,7 +228,6 @@ export const ReservationPage: React.FC = () => {
         }
     }, []);
 
-    // ==================== POLL M-PESA PAYMENT STATUS ====================
     const pollMpesaPayment = async (checkoutRequestId: string, maxAttempts = 30, intervalMs = 2000): Promise<any> => {
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             await new Promise(resolve => setTimeout(resolve, intervalMs));
@@ -251,11 +245,7 @@ export const ReservationPage: React.FC = () => {
         throw new Error('M-Pesa payment confirmation timeout. Please check your transaction status later.');
     };
 
-    // ==================== MAIN PAYMENT HANDLER ====================
     const handleConfirmPayment = useCallback(async () => {
-        const errors = {
-            terms: !termsAgreed,
-        };
         setValidationErrors(prev => ({ ...prev, terms: !termsAgreed }));
         if (!termsAgreed) {
             document.getElementById('terms-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -397,7 +387,6 @@ export const ReservationPage: React.FC = () => {
 
     if (!bookingState) return null;
 
-    // ==================== LICENSE BLOCKING MODAL ====================
     if (licenseBlocked) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -474,7 +463,8 @@ export const ReservationPage: React.FC = () => {
                                 onMethodChange={handlePaymentMethodChange}
                                 mpesaPhoneNumber={mpesaPhoneNumber}
                                 onMpesaPhoneChange={setMpesaPhoneNumber}
-                                basePrice={basePrice}
+                                basePrice={totalCarAndDriver}          // numeric total (car + driver)
+                                driverFeeTotal={driverTotal}            // numeric driver portion
                                 protectionCost={protectionCost}
                                 discountAmount={discountAmount}
                                 taxAmount={taxAmount}
@@ -510,4 +500,3 @@ export const ReservationPage: React.FC = () => {
         </div>
     );
 };
-
