@@ -113,7 +113,7 @@ module.exports = {
     async approveCar(carId) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
-        return car.update({ status: 'approved' });
+        return car.update({ status: 'approved', is_deleted: null });
     },
 
     async rejectCar(carId) {
@@ -154,7 +154,7 @@ module.exports = {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
         if (car.rented_to) throw new Error('Cannot delete car while rented');
-        return car.update({ is_deleted: true });
+        return car.update({ is_deleted: true, status: 'deleted' });
     },
 
     /**

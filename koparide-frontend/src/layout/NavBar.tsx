@@ -1,6 +1,6 @@
 // src/layout/Navbar.tsx (or wherever you keep it)
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 import useNavigate
+import { useNavigate } from "react-router-dom";
 import {
     Car,
     Menu,
@@ -8,7 +8,8 @@ import {
     User,
     LogOut,
     MessageSquare,
-    Briefcase
+    Briefcase,
+    Shield
 } from "lucide-react";
 
 import { useAuth } from "../auth/useAuth";
@@ -21,13 +22,14 @@ import { LoginModal } from "../pages/auth/user/LoginModal";
  * - No local login/register modal state
  * - "Sign in" → opens login modal
  * - "Sign up" → opens register modal
+ * - Admin users see an extra "Admin" link
  */
 export const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement | null>(null);
-    const navigate = useNavigate(); // 👈 hook for navigation
+    const navigate = useNavigate();
 
     const {
         user,
@@ -73,7 +75,7 @@ export const Navbar = () => {
 
     const handleLogout = () => {
         logout();
-        navigate("/"); // 👈 redirect to home page
+        navigate("/");
         closeProfileDropdown();
         closeMobileMenu();
     };
@@ -87,6 +89,8 @@ export const Navbar = () => {
             .toUpperCase()
             .slice(0, 2);
     };
+
+    const isAdmin = user?.role === "admin";
 
     return (
         <nav
@@ -142,6 +146,19 @@ export const Navbar = () => {
                         >
                             Become a host
                         </a>
+
+                        {/* Admin link (visible only to admin users) */}
+                        {isAdmin && (
+                            <a
+                                href="/admin"
+                                className={`text-sm font-medium transition hover:opacity-80 no-underline hover:no-underline flex items-center gap-1 ${
+                                    isScrolled ? "text-gray-700" : "text-white"
+                                }`}
+                            >
+                                <Shield className="h-4 w-4" />
+                                Admin
+                            </a>
+                        )}
                     </div>
 
                     {/* Auth Section (Desktop) */}
@@ -187,6 +204,17 @@ export const Navbar = () => {
                                         </div>
 
                                         <div className="py-1">
+                                            {/* Admin link in dropdown (visible only to admins) */}
+                                            {isAdmin && (
+                                                <a
+                                                    href="/admin"
+                                                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
+                                                    onClick={closeProfileDropdown}
+                                                >
+                                                    <Shield className="h-4 w-4 mr-3 text-gray-400" />
+                                                    Admin Dashboard
+                                                </a>
+                                            )}
                                             <a
                                                 href="/messages"
                                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 no-underline"
@@ -227,7 +255,6 @@ export const Navbar = () => {
                             </div>
                         ) : (
                             <>
-                                {/* Open LOGIN modal */}
                                 <button
                                     type="button"
                                     onClick={() => openAuthModal("login")}
@@ -235,8 +262,6 @@ export const Navbar = () => {
                                 >
                                     Sign in
                                 </button>
-
-                                {/* Open REGISTER modal */}
                                 <button
                                     type="button"
                                     onClick={() => openAuthModal("register")}
@@ -272,7 +297,6 @@ export const Navbar = () => {
                 <div className="md:hidden bg-white absolute top-full left-0 right-0 shadow-lg border-t border-gray-100 py-4 px-4 flex flex-col space-y-1 animate-in slide-in-from-top-5 duration-200 max-h-[80vh] overflow-y-auto">
                     {user ? (
                         <>
-                            {/* User Profile Header */}
                             <div className="flex items-center space-x-3 px-2 py-3 border-b border-gray-100 mb-2">
                                 <div className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-[#00A699]">
                                     {user?.profileImageUrl ? (
@@ -287,7 +311,6 @@ export const Navbar = () => {
                                         </span>
                                     )}
                                 </div>
-
                                 <div>
                                     <p className="font-semibold text-gray-900">
                                         {user.name || "User"}
@@ -297,6 +320,18 @@ export const Navbar = () => {
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Admin link in mobile menu (visible only to admins) */}
+                            {isAdmin && (
+                                <a
+                                    href="/admin"
+                                    className="flex items-center text-gray-700 font-medium py-3 px-2 hover:bg-gray-50 rounded-lg no-underline"
+                                    onClick={closeMobileMenu}
+                                >
+                                    <Shield className="h-5 w-5 mr-3 text-gray-400" />
+                                    Admin Dashboard
+                                </a>
+                            )}
 
                             <a
                                 href="/messages"
@@ -342,7 +377,6 @@ export const Navbar = () => {
                             >
                                 Explore
                             </a>
-
                             <a
                                 href="/#how-it-works"
                                 className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
@@ -350,7 +384,6 @@ export const Navbar = () => {
                             >
                                 How it works
                             </a>
-
                             <a
                                 href="/host"
                                 className="text-gray-700 font-medium py-3 border-b border-gray-50 no-underline hover:no-underline"
@@ -358,9 +391,7 @@ export const Navbar = () => {
                             >
                                 Become a host
                             </a>
-
                             <div className="flex flex-col space-y-3 pt-4">
-                                {/* Mobile Sign in → open LOGIN modal */}
                                 <button
                                     type="button"
                                     className="text-gray-700 font-medium text-left py-2"
@@ -371,8 +402,6 @@ export const Navbar = () => {
                                 >
                                     Sign in
                                 </button>
-
-                                {/* Mobile Sign up → open REGISTER modal */}
                                 <button
                                     type="button"
                                     className="bg-[#00A699] text-white px-5 py-3 rounded-full text-sm font-medium text-center"
@@ -389,7 +418,7 @@ export const Navbar = () => {
                 </div>
             )}
 
-            {/* Global Auth Modals (controlled by AuthContext) */}
+            {/* Global Auth Modals */}
             {authModalOpen && authModalType === "register" && (
                 <RegisterModal open={true} onClose={closeAuthModal} />
             )}

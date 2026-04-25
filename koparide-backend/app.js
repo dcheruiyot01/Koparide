@@ -9,6 +9,7 @@ const path = require('path');
 const compression = require('compression');
 
 const authRoutes = require('./routes/auth.routes');
+const adminRoutes = require('./routes/admin.routes');
 const profileRoutes = require('./routes/profile.routes');
 const carRoutes = require('./routes/car.routes');
 const reservationRoutes = require('./routes/reservation.routes');
@@ -86,6 +87,7 @@ app.use('/uploads/cars/registration', express.static(path.join(__dirname, 'uploa
 
 // ==================== ROUTES ====================
 app.use('/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/cars', carRoutes);
 app.use('/api/reservations', reservationRoutes);

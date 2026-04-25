@@ -51,7 +51,7 @@ const Car = sequelize.define('Car', {
         allowNull: false,
         defaultValue: 'pending',
         validate: {
-            isIn: [['pending', 'approved', 'rejected']]
+            isIn: [['pending', 'approved', 'rejected','deleted']]
         }
     },
 

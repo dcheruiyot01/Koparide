@@ -21,6 +21,12 @@ import { CarsPage } from "./pages/CarsPage";
 import { MessagesNotificationsPage } from "./pages/MessagesPage";
 import { ReservationPage } from "./pages/ReservationsPage";
 import { BookingConfirmation } from "./pages/BookingConfirmation";
+import { AdminUserProfile } from './pages/admin/AdminUserProfile';
+import { AdminDashboard } from './pages/admin/Dashboard';
+import { CarsManagement } from './pages/admin/CarsManagement';
+import { UsersManagement } from './pages/admin/UsersManagement';
+
+// In your router:
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -47,6 +53,11 @@ export const App = () => {
                     {/* Car detail page (public) */}
                     <Route path="/cars/:id" element={<CarPage />} />
 
+                    // For admin‑only routes:
+                    <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+                    <Route path="/admin/cars" element={<ProtectedRoute requiredRole="admin"><CarsManagement /></ProtectedRoute>} />
+                    <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><UsersManagement /></ProtectedRoute>} />
+                    <Route path="/admin/users/:userId/profile" element={<ProtectedRoute requiredRole="admin"><AdminUserProfile /></ProtectedRoute>} />
                     {/* Reservation page (protected) */}
                     <Route
                         path="/cars/:id/reservations"
