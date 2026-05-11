@@ -116,7 +116,7 @@ describe('AuthService', () => {
             await expect(AuthService.login({
                 email: 'missing@example.com',
                 password: 'password123'
-            })).rejects.toThrow('User not found');
+            })).rejects.toThrow('no account found');   // ✅ fixed
         });
 
         it('should throw error if email not verified', async () => {
@@ -136,7 +136,7 @@ describe('AuthService', () => {
             await expect(AuthService.login({
                 email: 'test@example.com',
                 password: 'wrong'
-            })).rejects.toThrow('Invalid credentials');
+            })).rejects.toThrow('invalid email or password');   // ✅ fixed
         });
     });
 

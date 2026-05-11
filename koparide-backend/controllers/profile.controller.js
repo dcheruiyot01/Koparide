@@ -24,16 +24,13 @@ exports.getProfile = async (req, res) => {
         }
         const user = await User.findByPk(req.user.id);
         const profileData = transformProfile(profile, user);
-        console.log(profileData);
         return res.json({ success: true, user: profileData });
     } catch (err) {
-        console.error("Get profile error:", err);
         return res.status(500).json({ success: false, error: 'Failed to fetch profile' });
     }
 };
 
 exports.updateProfile = async (req, res) => {
-    console.log(req.body);
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
         if (!profile) {
@@ -65,8 +62,7 @@ exports.updateProfile = async (req, res) => {
             user: profileData
         });
     } catch (err) {
-        console.error("Update profile error:", err);
-        return res.status(500).json({ success: false, error: 'Failed to update profile' });
+        return res.status(500).json({ success: false, error: 'Failed to update profile ' + err.message });
     }
 };
 
@@ -150,8 +146,7 @@ exports.uploadProfileImage = async (req, res) => {
 
         return res.json({ url: imageUrl });
     } catch (err) {
-        console.error("Image upload error:", err);
-        return res.status(500).json({ error: "Failed to upload image" });
+        return res.status(500).json({ error: "Failed to upload image " + err.message });
     }
 };
 
@@ -176,7 +171,6 @@ exports.uploadLicenseImage = async (req, res) => {
 
         return res.json({ url });
     } catch (err) {
-        console.error("Image upload error:", err);
-        return res.status(500).json({ error: "Failed to upload image" });
+        return res.status(500).json({ error: "Failed to upload image " + err.message });
     }
 };
