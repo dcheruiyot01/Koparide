@@ -43,8 +43,6 @@ async function seedProfiles() {
                 notificationPreferences: { email: true, sms: false, push: true }
             }
         ]);
-
-        console.log('✅ Profiles seeded successfully');
     } catch (error) {
         console.error('❌ Error seeding profiles:', error);
     }

@@ -47,7 +47,6 @@ class MpesaService {
 
         // Append the callback endpoint
         const fullCallbackUrl = `${callbackUrl}/api/payments/mpesa-callback`;
-        console.log(fullCallbackUrl);
         // Validate URL format
         try {
             new URL(fullCallbackUrl);

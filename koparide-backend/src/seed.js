@@ -36,8 +36,6 @@ function splitMakeModel(fullName) {
 async function seed() {
     try {
         await sequelize.authenticate();
-        console.log('DB connection OK');
-
         await sequelize.sync({ force: true });
         console.log('Database synced (force: true)');
 
@@ -50,9 +48,7 @@ async function seed() {
                 password: 'demo123',
                 role: 'host'
             });
-            console.log('Created demo user:', user.id, user.email);
         } else {
-            console.log('Demo user exists:', user.id, user.email);
         }
 
         for (const carData of cars) {

@@ -179,9 +179,6 @@ module.exports = {
    REFRESH ACCESS TOKEN (FIXED VERSION)
 -------------------------------------------------------- */
     async refresh(refreshToken) {
-        console.log('=== REFRESH DEBUG ===');
-        console.log('1. Received refresh token:', refreshToken ? 'Present' : 'Missing');
-
         if (!refreshToken) {
             const error = new Error('No refresh token provided');
             error.status = 401;
@@ -190,35 +187,24 @@ module.exports = {
 
         // Hash the incoming token to compare with stored hashes
         const hashedIncomingToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
-        console.log('2. Hashed incoming token:', hashedIncomingToken.substring(0, 20) + '...');
 
         // Find user by the hashed token (direct lookup!)
         const user = await User.findOne({
             where: { refreshToken: hashedIncomingToken }
         });
 
-        console.log('3. User found by token?', !!user);
-
         if (!user) {
-            console.log('4. No user found with that token');
             const error = new Error('Invalid refresh token');
             error.status = 401;
             throw error;
         }
 
-        console.log('5. User ID:', user.id);
-        console.log('6. Token expires:', user.refreshTokenExpires);
-        console.log('7. Current time:', new Date());
-
         // Check expiration
         if (user.refreshTokenExpires < Date.now()) {
-            console.log('8. Token expired');
             const error = new Error('Refresh token expired');
             error.status = 401;
             throw error;
         }
-
-        console.log('9. Token valid, issuing new access token');
 
         // Optional: Rotate refresh token (security best practice)
         const newRefreshToken = generateRefreshToken(); // Use the imported function
@@ -228,8 +214,6 @@ module.exports = {
         user.refreshToken = hashedNewRefresh;
         user.refreshTokenExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await user.save();
-
-        console.log('10. Refresh token rotated');
 
         // Return both tokens
         return {
