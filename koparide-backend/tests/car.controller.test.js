@@ -15,23 +15,26 @@ const request = require('supertest');
 const express = require('express');
 const bodyParser = require('body-parser');
 
-// Mock CarService
+// Mock CarService with the actual methods used by the controller
 jest.mock('../services/car.service', () => ({
-    createCarListing: jest.fn(),
+    createCarWithAssets: jest.fn(),   // renamed from createCarListing
     uploadCarImages: jest.fn(),
     uploadInsurance: jest.fn(),
+    uploadRegistration: jest.fn(),    // used in updateCarListing, but not in these tests
     approveCar: jest.fn(),
     rejectCar: jest.fn(),
     getPublicCars: jest.fn(),
     deleteCar: jest.fn(),
     rentCar: jest.fn(),
-    returnCar: jest.fn()
+    returnCar: jest.fn(),
+    updateCarListing: jest.fn(),
 }));
 const CarService = require('../services/car.service');
 
-// Mock MailService
+// Mock MailService with both sendMail (object style) and sendEmail (arguments style)
 jest.mock('../services/mail.service', () => ({
-    sendEmail: jest.fn()
+    sendMail: jest.fn(),
+    sendEmail: jest.fn(),
 }));
 const MailService = require('../services/mail.service');
 
@@ -47,6 +50,8 @@ function route(method, path, handler) {
     app[method](path, (req, res, next) => {
         // Inject mock user for auth context
         req.user = { id: 42, name: 'Daniel', email: 'test@example.com' };
+        // Provide empty files object to avoid undefined errors in the controller
+        req.files = { images: [], logbook: [], insurance: [] };
         handler(req, res, next);
     });
 }
@@ -65,28 +70,31 @@ describe('CarController', () => {
     /**
      * CREATE CAR LISTING
      */
-    it('✅ should create car listing and send owner notification email', async () => {
-        CarService.createCarListing.mockResolvedValue({
-            id: 1, make: 'Toyota', model: 'Corolla', status: 'pending'
-        });
+    it('should create car listing and send owner notification email', async () => {
+        const mockCar = { id: 1, make: 'Toyota', model: 'Corolla', status: 'pending' };
+        const mockImages = [
+            { url: 'http://localhost/uploads/cars/images/img1.jpg' },
+            { url: 'http://localhost/uploads/cars/images/img2.jpg' }
+        ];
+        CarService.createCarWithAssets.mockResolvedValue({ car: mockCar, images: mockImages });
 
         const res = await request(app).post('/cars').send({
             make: 'Toyota', model: 'Corolla', year: 2020, pricePerDay: 40
         });
 
         expect(res.status).toBe(201);
-        expect(res.body.message).toContain('Pending approval');
-        expect(MailService.sendEmail).toHaveBeenCalledWith(
-            'test@example.com',
-            'Car Listing Pending Approval',
-            expect.stringContaining('Toyota Corolla')
-        );
+        expect(res.body.message).toContain('submitted successfully');
+        expect(MailService.sendMail).toHaveBeenCalledWith({
+            to: 'test@example.com',
+            subject: 'Car Listing Pending Approval',
+            html: expect.stringContaining('Toyota Corolla')
+        });
     });
 
     /**
      * RENT CAR
      */
-    it('✅ should rent car and send renter notification email', async () => {
+    it('should rent car and send renter notification email', async () => {
         CarService.rentCar.mockResolvedValue({
             id: 1, make: 'Toyota', model: 'Corolla', pricePerDay: 40, ownerId: 42
         });
@@ -105,7 +113,7 @@ describe('CarController', () => {
     /**
      * DELETE CAR
      */
-    it('✅ should delete car successfully', async () => {
+    it('should delete car successfully', async () => {
         CarService.deleteCar.mockResolvedValue({ id: 1, is_deleted: true });
 
         const res = await request(app).delete('/cars/1');
@@ -117,7 +125,7 @@ describe('CarController', () => {
     /**
      * APPROVE CAR
      */
-    it('✅ should approve car listing', async () => {
+    it('should approve car listing', async () => {
         CarService.approveCar.mockResolvedValue({ id: 1, status: 'approved' });
 
         const res = await request(app).patch('/admin/cars/1/approve');
@@ -129,7 +137,7 @@ describe('CarController', () => {
     /**
      * REJECT CAR
      */
-    it('✅ should reject car listing', async () => {
+    it('should reject car listing', async () => {
         CarService.rejectCar.mockResolvedValue({ id: 1, status: 'rejected' });
 
         const res = await request(app).patch('/admin/cars/1/reject');
@@ -141,7 +149,8 @@ describe('CarController', () => {
     /**
      * GET PUBLIC CARS
      */
-    it('✅ should return public cars', async () => {
+    it('should return public cars', async () => {
+        // The controller passes query parameters to the service
         CarService.getPublicCars.mockResolvedValue([
             { id: 1, make: 'Toyota', status: 'approved', is_deleted: false },
             { id: 2, make: 'Honda', status: 'approved', is_deleted: false }
