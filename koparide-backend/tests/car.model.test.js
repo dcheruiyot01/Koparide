@@ -33,7 +33,7 @@ describe('Car Model', () => {
         await sequelize.close();
     });
 
-    it('✅ should create a car with status pending and default classification', async () => {
+    it('should create a car with status pending and default classification', async () => {
         const owner = await User.create({ name: 'Daniel', email: 'owner@example.com', password: 'hashed' });
 
         const car = await Car.create({
@@ -41,6 +41,8 @@ describe('Car Model', () => {
             make: 'Toyota',
             model: 'Corolla',
             year: 2020,
+            seats: 4,
+            fuelType:'petrol',
             pricePerDay: 40.00
         });
 
@@ -49,17 +51,19 @@ describe('Car Model', () => {
         expect(car.is_deleted).toBe(false);
     });
 
-    it('❌ should fail if required fields are missing', async () => {
+    it('should fail if required fields are missing', async () => {
         await expect(Car.create({})).rejects.toThrow();
     });
 
-    it('✅ should accept valid classification', async () => {
+    it('should accept valid classification', async () => {
         const owner = await User.create({ name: 'Host', email: 'host@example.com', password: 'hashed' });
 
         const car = await Car.create({
             ownerId: owner.id,
             make: 'Toyota',
             model: 'RAV4',
+            seats: 4,
+            fuelType:'petrol',
             year: 2021,
             pricePerDay: 60.00,
             classification: 'SUV'
@@ -68,7 +72,7 @@ describe('Car Model', () => {
         expect(car.classification).toBe('SUV');
     });
 
-    it('❌ should reject invalid classification', async () => {
+    it('should reject invalid classification', async () => {
         const owner = await User.create({ name: 'Host2', email: 'host2@example.com', password: 'hashed' });
 
         await expect(Car.create({
@@ -76,18 +80,22 @@ describe('Car Model', () => {
             make: 'Toyota',
             model: 'Hilux',
             year: 2022,
+            seats: 4,
+            fuelType:'petrol',
             pricePerDay: 70,
             classification: 'Spaceship' // invalid
         })).rejects.toThrow(/Validation error/);
     });
 
-    it('✅ should associate car with an owner', async () => {
+    it('should associate car with an owner', async () => {
         const owner = await User.create({ name: 'OwnerUser', email: 'owneruser@example.com', password: 'hashed' });
 
         const car = await Car.create({
             ownerId: owner.id,
             make: 'Honda',
             model: 'Civic',
+            seats: 4,
+            fuelType:'petrol',
             year: 2021,
             pricePerDay: 50.00
         });
@@ -96,7 +104,7 @@ describe('Car Model', () => {
         expect(fetchedCar.owner.email).toBe('owneruser@example.com');
     });
 
-    it('✅ should allow assigning a renter to a car', async () => {
+    it('should allow assigning a renter to a car', async () => {
         const owner = await User.create({ name: 'Owner', email: 'owner3@example.com', password: 'hashed' });
         const renter = await User.create({ name: 'Renter', email: 'renter@example.com', password: 'hashed' });
 
@@ -104,6 +112,8 @@ describe('Car Model', () => {
             ownerId: owner.id,
             make: 'Mazda',
             model: 'CX-5',
+            seats: 4,
+            fuelType:'petrol',
             year: 2022,
             pricePerDay: 55.00,
             rented_to: renter.id
@@ -113,7 +123,7 @@ describe('Car Model', () => {
         expect(fetchedCar.renter.email).toBe('renter@example.com');
     });
 
-    it('✅ should clear rented_to if renter is deleted', async () => {
+    it('should clear rented_to if renter is deleted', async () => {
         const owner = await User.create({ name: 'Owner4', email: 'owner4@example.com', password: 'hashed' });
         const renter = await User.create({ name: 'TempRenter', email: 'temp@example.com', password: 'hashed' });
 
@@ -121,6 +131,8 @@ describe('Car Model', () => {
             ownerId: owner.id,
             make: 'Ford',
             model: 'Focus',
+            seats: 4,
+            fuelType:'petrol',
             year: 2021,
             pricePerDay: 45.00,
             rented_to: renter.id
@@ -131,13 +143,15 @@ describe('Car Model', () => {
         expect(updatedCar.rented_to).toBeNull();
     });
 
-    it('✅ should mark car as deleted when is_deleted is set', async () => {
+    it('should mark car as deleted when is_deleted is set', async () => {
         const owner = await User.create({ name: 'Owner5', email: 'owner5@example.com', password: 'hashed' });
 
         const car = await Car.create({
             ownerId: owner.id,
             make: 'Nissan',
             model: 'Altima',
+            seats: 4,
+            fuelType:'petrol',
             year: 2019,
             pricePerDay: 35.00
         });
