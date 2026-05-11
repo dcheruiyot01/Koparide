@@ -2,7 +2,9 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-
+docker-compose.dev.yml
+koparide-backend/dockerfile.dev
+koparide-frontend/dockerfile.dev
 # Env
 koparide-backend/.env
 .env.local

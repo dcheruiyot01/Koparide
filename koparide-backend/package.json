@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "cd koparide-backend && cross-env NODE_ENV=test jest --runInBand"
+    "test": "cd koparide-backend && cross-env NODE_ENV=test jest --runInBand",
+    "dev": "node --watch server.js"
+
   },
   "keywords": [],
   "author": "",
@@ -42,6 +44,7 @@
   "devDependencies": {
     "cross-env": "^10.1.0",
     "jest": "^30.2.0",
+    "nodemon": "^3.1.14",
     "sqlite3": "^5.1.7",
     "supertest": "^7.2.2"
   }

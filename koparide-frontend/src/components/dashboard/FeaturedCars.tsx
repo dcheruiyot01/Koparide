@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Star, MapPin, Heart, Loader2, AlertCircle } from "lucide-react";
+import { Star, MapPin, Heart, Loader2, AlertCircle, Car } from "lucide-react";
 import api from "../../api/axios";
 import type { ApiCar } from '../../utils/carNormalizer';
 
