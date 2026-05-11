@@ -13,7 +13,7 @@ export const Footer = () => {
                     <div className="space-y-6">
                         <div className="flex items-center">
                             <Car className="h-8 w-8 text-[#00A699]" />
-                            <span className="ml-2 text-xl font-bold text-white">Wheelaway</span>
+                            <span className="ml-2 text-xl font-bold text-white">Wheelaway Kenya</span>
                         </div>
 
                         <p className="text-gray-400 text-sm">
@@ -80,7 +80,7 @@ export const Footer = () => {
                 {/* Bottom Bar */}
                 <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
                     <p className="text-gray-500 text-sm mb-4 md:mb-0">
-                        © {new Date().getFullYear()} Koparide. All rights reserved.
+                        © {new Date().getFullYear()} WheelAway Kenya. All rights reserved.
                     </p>
 
                     <div className="flex space-x-6 list-none">

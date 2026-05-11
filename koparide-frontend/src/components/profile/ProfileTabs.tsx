@@ -483,7 +483,7 @@ export function ProfileTabs({
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">KES {res.totalAmount.toLocaleString()}</td>
                                 <td className="px-6 py-4 whitespace-nowrap"><span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${badgeClass}`}>{label}</span></td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                    {res.status === 'confirmed' && <a href={`/bookings/${res.id}`} className="text-[#00A699] hover:underline">View Details</a>}
+                                    {res.status === 'confirmed' && <a href={`/reservations/${res.id}`} className="text-[#00A699] hover:underline">View Details</a>}
                                     {res.status === 'payment_pending' && <span className="text-yellow-600">Awaiting payment</span>}
                                 </td>
                             </tr>

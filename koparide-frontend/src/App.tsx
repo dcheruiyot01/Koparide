@@ -3,7 +3,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Toaster } from "react-hot-toast";
 
-import { Navbar } from "./layout/Navbar";
+import { Navbar } from "./layout/NavBar";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 import { Login } from "./pages/auth/user/Login";
@@ -20,6 +20,7 @@ import { CarPage } from "./pages/CarPage";
 import { CarsPage } from "./pages/CarsPage";
 import { MessagesNotificationsPage } from "./pages/MessagesPage";
 import { ReservationPage } from "./pages/ReservationsPage";
+import { ReservationDetailsPage } from "./pages/ReservationDetailsPage";
 import { BookingConfirmation } from "./pages/BookingConfirmation";
 import { AdminUserProfile } from './pages/admin/AdminUserProfile';
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -73,6 +74,15 @@ export const App = () => {
                         element={
                             <ProtectedRoute>
                                 <BookingConfirmation />
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/reservations/:id"
+                        element={
+                            <ProtectedRoute>
+                                <ReservationDetailsPage />
                             </ProtectedRoute>
                         }
                     />

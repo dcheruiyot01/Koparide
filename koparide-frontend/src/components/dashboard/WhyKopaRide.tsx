@@ -104,7 +104,7 @@ const STATS = [
     { icon: HelpCircle, value: "24/7", label: "Customer support" },
 ]
 
-const DEFAULT_TITLE = "Why choose Koparide?"
+const DEFAULT_TITLE = "Why choose WheelAway Kenya?"
 const DEFAULT_DESCRIPTION = "Skip the rental counter and book the car you want, directly from a local host. Whether it's an electric car for a city break or a 4x4 for a countryside adventure, find the perfect vehicle for your next trip."
 
 // ==================== UTILITIES ====================

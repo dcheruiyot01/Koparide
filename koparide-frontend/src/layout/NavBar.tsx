@@ -113,7 +113,7 @@ export const Navbar = () => {
                             }`}
                         >
                             <a href="/" className="no-underline text-inherit">
-                                WheelAway {`{Kopa Ride}`}
+                                WheelAway {`{Kenya}`}
                             </a>
                         </span>
                     </div>
