@@ -56,7 +56,7 @@ describe('AuthController', () => {
     /**
      * REGISTER
      */
-    it('✅ should register user successfully', async () => {
+    it('should register user successfully', async () => {
         AuthService.register.mockResolvedValue({ user: { id: 1 }, token: 'access' });
 
         const res = await request(app).post('/register').send({ email: 'test@example.com', password: '123' });
@@ -69,7 +69,7 @@ describe('AuthController', () => {
     /**
      * LOGIN
      */
-    it('✅ should login user and set refresh token cookie', async () => {
+    it('should login user and set refresh token cookie', async () => {
         AuthService.login.mockResolvedValue({
             accessToken: 'access-token',
             refreshToken: 'refresh-token',
@@ -87,7 +87,7 @@ describe('AuthController', () => {
     /**
      * GOOGLE OAUTH
      */
-    it('✅ should login via Google and set cookie', async () => {
+    it('should login via Google and set cookie', async () => {
         AuthService.googleOAuth.mockResolvedValue({
             accessToken: 'access-token',
             refreshToken: 'refresh-token',
@@ -104,7 +104,7 @@ describe('AuthController', () => {
     /**
      * FORGOT PASSWORD
      */
-    it('✅ should generate password reset link', async () => {
+    it('should generate password reset link', async () => {
         AuthService.createPasswordResetToken.mockResolvedValue({ resetURL: 'http://reset' });
 
         const res = await request(app).post('/forgot').send({ email: 'test@example.com' });
@@ -117,7 +117,7 @@ describe('AuthController', () => {
     /**
      * RESET PASSWORD
      */
-    it('✅ should reset password successfully', async () => {
+    it('should reset password successfully', async () => {
         AuthService.resetPassword.mockResolvedValue({ message: 'Password reset successful' });
 
         const res = await request(app).post('/reset/token123').send({ password: 'newPass' });
@@ -129,7 +129,7 @@ describe('AuthController', () => {
     /**
      * VERIFY EMAIL
      */
-    it('✅ should verify email successfully', async () => {
+    it('should verify email successfully', async () => {
         AuthService.verifyEmail.mockResolvedValue({ message: 'Email verified successfully' });
 
         const res = await request(app).get('/verify/token123');
@@ -141,7 +141,7 @@ describe('AuthController', () => {
     /**
      * RESEND VERIFICATION EMAIL
      */
-    it('✅ should resend verification email', async () => {
+    it('should resend verification email', async () => {
         AuthService.resendVerificationEmail.mockResolvedValue({ message: 'Verification email resent' });
 
         const res = await request(app).post('/resend').send({ email: 'test@example.com' });
@@ -151,10 +151,14 @@ describe('AuthController', () => {
     });
 
     /**
-     * REFRESH TOKEN
+     * REFRESH TOKEN – FIXED
      */
-    it('✅ should refresh access token', async () => {
-        AuthService.refresh.mockResolvedValue('new-access-token');
+    it('should refresh access token', async () => {
+        // Mock the service to return the expected object with accessToken and refreshToken
+        AuthService.refresh.mockResolvedValue({
+            accessToken: 'new-access-token',
+            refreshToken: 'new-refresh-token'
+        });
 
         const res = await request(app).post('/refresh').set('Cookie', 'refreshToken=refresh-token');
 
@@ -165,7 +169,7 @@ describe('AuthController', () => {
     /**
      * LOGOUT
      */
-    it('✅ should logout and clear cookie', async () => {
+    it('should logout and clear cookie', async () => {
         AuthService.logout.mockResolvedValue({ message: 'Logged out successfully' });
 
         const res = await request(app).post('/logout');
