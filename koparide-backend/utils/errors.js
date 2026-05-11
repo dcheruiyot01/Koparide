@@ -1,6 +1,6 @@
 /**
  * Custom error classes for consistent API error handling.
- * All errors extend the base AppError and include a statusCode.
+ * Includes a global error handler middleware for Express.
  */
 
 /**
@@ -12,6 +12,18 @@ class AppError extends Error {
         this.statusCode = statusCode;
         this.isOperational = true; // distinguish operational from programming errors
         Error.captureStackTrace(this, this.constructor);
+    }
+
+    /**
+     * Serialize error for JSON responses.
+     * Avoids exposing stack traces in production.
+     */
+    toJSON() {
+        return {
+            message: this.message,
+            statusCode: this.statusCode,
+            ...(process.env.NODE_ENV !== 'production' && { stack: this.stack })
+        };
     }
 }
 
@@ -60,6 +72,33 @@ class ConflictError extends AppError {
     }
 }
 
+/**
+ * Global Express error handler middleware.
+ * Use this as the last middleware in your app.
+ */
+const errorHandler = (err, req, res, next) => {
+    // Log error for debugging
+    console.error(err);
+
+    // If the error is an instance of AppError, use its statusCode and message
+    if (err instanceof AppError) {
+        return res.status(err.statusCode).json(err.toJSON());
+    }
+
+    // For unknown errors (programming errors, etc.), send 500
+    const internalError = new AppError('Internal server error', 500);
+    res.status(500).json(internalError.toJSON());
+};
+
+/**
+ * Middleware to catch 404 routes (not found).
+ * Place after all route definitions but before errorHandler.
+ */
+const notFoundHandler = (req, res, next) => {
+    const err = new NotFoundError(`Cannot ${req.method} ${req.originalUrl}`);
+    next(err);
+};
+
 module.exports = {
     AppError,
     NotFoundError,
@@ -67,4 +106,6 @@ module.exports = {
     UnauthorizedError,
     ForbiddenError,
     ConflictError,
+    errorHandler,
+    notFoundHandler,
 };

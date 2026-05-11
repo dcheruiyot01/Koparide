@@ -14,17 +14,34 @@ const request = require('supertest');
 const app = require('../app');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// Load test DB + env
-require('./setup/db');
+// Load test environment (JWT_SECRET, DB config)
 require('./setup/test-env');
 
-// Mock Nodemailer
+// Mock Nodemailer globally
 jest.mock('nodemailer');
 
 describe('Auth API', () => {
-  beforeEach(async () => {
+  let server;
+
+  beforeAll(async () => {
+    // Sync models with test database (force true only once)
     await User.sync({ force: true });
+    // Start the server on a random port
+    server = app.listen(0);
+  });
+
+  afterAll(async () => {
+    // Only close the server – let the global teardown handle the database
+    await server.close();
+  });
+
+  beforeEach(async () => {
+    // Clear users table before each test (but keep schema)
+    await User.destroy({ where: {}, truncate: true });
+    // Reset nodemailer mock
     nodemailer.createTransport().sendMail.mockClear();
   });
 
@@ -43,24 +60,16 @@ describe('Auth API', () => {
 
     expect(res.statusCode).toBe(201);
 
-    // Response shape
     expect(res.body).toHaveProperty('user');
     expect(res.body).toHaveProperty('token');
     expect(res.body).toHaveProperty('verifyURL');
-
     expect(res.body.user.email).toBe('daniel@example.com');
 
-    // User exists in DB
     const userInDb = await User.findOne({ where: { email: 'daniel@example.com' } });
     expect(userInDb).not.toBeNull();
-
-    // Password must be hashed
     expect(userInDb.password).not.toBe('password123');
-
-    // Email verification token stored
     expect(userInDb.emailVerificationToken).not.toBeNull();
 
-    // Nodemailer was called
     const sendMailMock = nodemailer.createTransport().sendMail;
     expect(sendMailMock).toHaveBeenCalledTimes(1);
   });
@@ -69,7 +78,8 @@ describe('Auth API', () => {
     await User.create({
       name: 'Daniel',
       email: 'daniel@example.com',
-      password: 'hashed'
+      password: 'hashed',
+      isVerified: false
     });
 
     const res = await request(app)
@@ -89,9 +99,7 @@ describe('Auth API', () => {
   // -------------------------------------------------------------
 
   test('POST /auth/login → rejects unverified user', async () => {
-    const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash('password123', 10);
-
     await User.create({
       name: 'Daniel',
       email: 'daniel@example.com',
@@ -107,14 +115,12 @@ describe('Auth API', () => {
         });
 
     expect(res.statusCode).toBe(403);
-    expect(res.body.message).toMatch(/verify/i);
+    expect(res.body.message).toMatch(/verify your email/i);
   });
 
   test('POST /auth/login → logs in verified user with correct credentials', async () => {
-    const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash('password123', 10);
-
-    const user = await User.create({
+    await User.create({
       name: 'Daniel',
       email: 'daniel@example.com',
       password: hashed,
@@ -130,12 +136,12 @@ describe('Auth API', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('token');
+    expect(res.body).toHaveProperty('user');
+    expect(res.body.user.email).toBe('daniel@example.com');
   });
 
   test('POST /auth/login → rejects wrong password', async () => {
-    const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash('password123', 10);
-
     await User.create({
       name: 'Daniel',
       email: 'daniel@example.com',
@@ -151,7 +157,7 @@ describe('Auth API', () => {
         });
 
     expect(res.statusCode).toBe(401);
-    expect(res.body.message).toMatch(/invalid/i);
+    expect(res.body.message).toMatch(/invalid email or password/i);
   });
 
   test('POST /auth/login → rejects non-existent email', async () => {
@@ -163,28 +169,23 @@ describe('Auth API', () => {
         });
 
     expect(res.statusCode).toBe(404);
-    expect(res.body.message).toMatch(/not found/i);
+    expect(res.body.message).toMatch(/no account found/i);
   });
 
   // -------------------------------------------------------------
-  // AUTH ME TEST
+  // AUTH ME TESTS
   // -------------------------------------------------------------
 
   test('GET /auth/me → returns logged-in user when token is valid', async () => {
-    const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash('password123', 10);
-
     const user = await User.create({
       name: 'Daniel',
       email: 'daniel@example.com',
       password: hashed,
       isVerified: true
     });
-    user.isVerified = true;
-    await user.save();
 
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     const res = await request(app)
         .get('/auth/me')
@@ -192,5 +193,18 @@ describe('Auth API', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.body.user.email).toBe('daniel@example.com');
+  });
+
+  test('GET /auth/me → returns 401 when token is missing', async () => {
+    const res = await request(app).get('/auth/me');
+    expect(res.statusCode).toBe(401);
+    expect(res.body.message).toMatch(/no token provided/i);
+  });
+
+  test('GET /auth/me → returns 401 when token is invalid', async () => {
+    const res = await request(app)
+        .get('/auth/me')
+        .set('Authorization', 'Bearer invalid.token.here');
+    expect(res.statusCode).toBe(401);
   });
 });

@@ -39,7 +39,6 @@ module.exports = {
     try {
       const { accessToken, refreshToken, user } = await AuthService.login(req.body);
 
-      // Set refresh token as secure, httpOnly cookie
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -53,27 +52,12 @@ module.exports = {
         user
       });
     } catch (err) {
-      // Log the full error for debugging
       logger.error('Login error:', err.message, err.stack);
 
-      // Determine appropriate status code and user-friendly message
-      let statusCode = 401;
-      let message = 'Invalid email or password';
+      // Use the status and message from the service error (if present)
+      const statusCode = err.status || 500;
+      const message = err.message || 'Invalid email or password';
 
-      if (err.message) {
-        const msg = err.message.toLowerCase();
-        if (msg.includes('not found') || msg.includes('does not exist')) {
-          statusCode = 404;
-          message = 'No account found with this email address';
-        } else if (msg.includes('password') || msg.includes('credentials') || msg.includes('invalid')) {
-          statusCode = 401;
-          message = 'Invalid email or password';
-        } else {
-          message = err.message; // use original message if not sensitive
-        }
-      }
-
-      // Pass a structured error to the global error handler
       const error = new Error(message);
       error.statusCode = statusCode;
       next(error);

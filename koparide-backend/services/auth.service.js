@@ -83,7 +83,7 @@ module.exports = {
     async login({ email, password }) {
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            const error = new Error('User not found');
+            const error = new Error('no account found');
             error.status = 404;
             throw error;
         }
@@ -96,7 +96,7 @@ module.exports = {
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            const error = new Error('Invalid credentials');
+            const error = new Error('invalid email or password');
             error.status = 401;
             throw error;
         }

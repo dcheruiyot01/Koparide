@@ -15,6 +15,7 @@ const carRoutes = require('./routes/car.routes');
 const reservationRoutes = require('./routes/reservation.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const errorHandler = require('./middleware/error.middleware');
+const { notFoundHandler } = require('./middleware/error.middleware');
 
 const app = express();
 
@@ -98,6 +99,9 @@ app.get('/health', (req, res) => {
 });
 
 // ==================== ERROR HANDLER ====================
+// 404 for unmatched routes
+app.use(notFoundHandler);
+// Global error handler (must be last)
 app.use(errorHandler);
 
 module.exports = app;
