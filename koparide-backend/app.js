@@ -87,7 +87,7 @@ app.use('/uploads/cars/insurance', express.static(path.join(__dirname, 'uploads/
 app.use('/uploads/cars/registration', express.static(path.join(__dirname, 'uploads/cars/registration'), staticOptions));
 
 // ==================== ROUTES ====================
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/cars', carRoutes);

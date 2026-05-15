@@ -1,6 +1,6 @@
 // controllers/profile.controller.js
 
-const Profile = require('../models/profile');
+const Profile = require('../models/Profile');
 const User = require('../models/User');
 // Whitelist of fields that can be updated
 const UPDATABLE_FIELDS = new Set([

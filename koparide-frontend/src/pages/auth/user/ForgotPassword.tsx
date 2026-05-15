@@ -25,7 +25,7 @@ export const ForgotPassword = () => {
         setSuccess(null);
 
         try {
-            const res = await api.post("/auth/forgot-password", { email });
+            const res = await api.post("/api/auth/forgot-password", { email });
             setSuccess(res.data.message || "Password reset link sent to your email.");
         } catch (err: any) {
             setError(err?.response?.data?.message || "Something went wrong.");

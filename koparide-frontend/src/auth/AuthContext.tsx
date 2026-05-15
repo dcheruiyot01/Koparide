@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }: Props) => {
 
     const register = useCallback(
         async (name: string, email: string, password: string) => {
-            const res = await api.post<AuthResponse>("/auth/register", {
+            const res = await api.post<AuthResponse>("/api/auth/register", {
                 name,
                 email,
                 password
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: Props) => {
 
     const login = useCallback(
         async (email: string, password: string) => {
-            const res = await api.post<AuthResponse>("/auth/login", {
+            const res = await api.post<AuthResponse>("/api/auth/login", {
                 email,
                 password
             });
@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }: Props) => {
     );
 
     const googleLogin = useCallback(async (credential: string) => {
-        const res = await api.post<AuthResponse>("/auth/oauth/google", {
+        const res = await api.post<AuthResponse>("/api/auth/oauth/google", {
             credential
         });
         persistAuth(res.data);
@@ -134,7 +134,7 @@ export const AuthProvider = ({ children }: Props) => {
 
     const logout = useCallback(async () => {
         try {
-            await api.post("/auth/logout");
+            await api.post("/api/auth/logout");
         } catch {
             // ignore network errors on logout
         } finally {
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }: Props) => {
             async (error) => {
                 // if refresh itself fails, force logout
                 if (
-                    error.config?.url?.includes("/auth/refresh") &&
+                    error.config?.url?.includes("/api/auth/refresh") &&
                     error.response?.status === 401
                 ) {
                     await logout();
