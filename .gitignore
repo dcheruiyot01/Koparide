@@ -8,6 +8,7 @@ koparide-frontend/dockerfile.dev
 docker-compose.prod.example.yml
 # Env
 koparide-backend/.env
+koparide-frontend/.env
 .env.local
 .env.*.local
 
