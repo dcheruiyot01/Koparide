@@ -1,35 +1,46 @@
-// controllers/profile.controller.js
+/**
+ * Profile Controller
+ * -----------------
+ * Handles profile retrieval, updates, and file uploads (profile image, driver's license).
+ * All file uploads are stored in DigitalOcean Spaces (production) or local disk (development)
+ * via the storage service.
+ */
 
 const Profile = require('../models/Profile');
 const User = require('../models/User');
+const storageService = require('../services/storage.service');
+
 // Whitelist of fields that can be updated
 const UPDATABLE_FIELDS = new Set([
     'firstName', 'lastName', 'phoneNumber', 'nationalIdNumber',
     'gender', 'dateOfBirth', 'address', 'profileImageUrl',
-    'driversLicenseUrl', 'preferredCarType', 'languagePreference', 'about', 'driversLicenseNumber','driversLicenseExpiry'
+    'driversLicenseUrl', 'preferredCarType', 'languagePreference', 'about',
+    'driversLicenseNumber', 'driversLicenseExpiry'
 ]);
-
 
 /**
  * Get the authenticated user's profile
+ * Creates a default profile if none exists.
  */
 exports.getProfile = async (req, res) => {
     try {
         let profile = await Profile.findOne({ where: { userid: req.user.id } });
         if (!profile) {
-            let profile = await Profile.create({
-                userid: req.user.id,
-            });
+            profile = await Profile.create({ userid: req.user.id });
             return res.json(profile);
         }
         const user = await User.findByPk(req.user.id);
         const profileData = transformProfile(profile, user);
         return res.json({ success: true, user: profileData });
     } catch (err) {
+        console.error('Get profile error:', err);
         return res.status(500).json({ success: false, error: 'Failed to fetch profile' });
     }
 };
 
+/**
+ * Update profile (text fields only)
+ */
 exports.updateProfile = async (req, res) => {
     try {
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
@@ -62,11 +73,14 @@ exports.updateProfile = async (req, res) => {
             user: profileData
         });
     } catch (err) {
-        return res.status(500).json({ success: false, error: 'Failed to update profile ' + err.message });
+        console.error('Update profile error:', err);
+        return res.status(500).json({ success: false, error: 'Failed to update profile: ' + err.message });
     }
 };
 
-// Helper to transform profile + user into frontend‑ready object
+/**
+ * Helper: transform profile + user into frontend‑ready object
+ */
 function transformProfile(profile, user) {
     const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'User';
     const initials = (profile.firstName?.[0] || '') + (profile.lastName?.[0] || '');
@@ -99,8 +113,8 @@ function transformProfile(profile, user) {
         age,
         address: profile.address || '',
         location: profile.address || 'Location not set',
-        profileImageUrl: profile.profileImageUrl || '',
-        driversLicenseUrl: profile.driversLicenseUrl || '',
+        profileImageUrl: profile.profileImageUrl || '',   // Will contain CDN URL in production
+        driversLicenseUrl: profile.driversLicenseUrl || '', // CDN URL
         rentalCount: profile.rentalCount || 0,
         rating: parseFloat(profile.rating) || 0,
         preferredCarType: profile.preferredCarType || '',
@@ -126,6 +140,8 @@ function transformProfile(profile, user) {
 
 /**
  * Upload and update profile image
+ * - Uses storageService.uploadProfileImage() -> returns CDN URL
+ * - Saves URL to Profile.profileImageUrl
  */
 exports.uploadProfileImage = async (req, res) => {
     try {
@@ -133,11 +149,10 @@ exports.uploadProfileImage = async (req, res) => {
             return res.status(400).json({ error: "No file uploaded" });
         }
 
-        // TODO:: Replace hardcoded localhost with environment variable (e.g., process.env.BASE_URL)
-        const imageUrl = process.env.BASE_URL+`/uploads/profiles/${req.file.filename}`;
+        // Upload to DigitalOcean Spaces (or local disk in development via service logic)
+        const imageUrl = await storageService.uploadProfileImage(req.file, req.user.id);
 
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
-
         if (!profile) {
             return res.status(404).json({ error: "Profile not found" });
         }
@@ -146,12 +161,15 @@ exports.uploadProfileImage = async (req, res) => {
 
         return res.json({ url: imageUrl });
     } catch (err) {
-        return res.status(500).json({ error: "Failed to upload image " + err.message });
+        console.error('Upload profile image error:', err);
+        return res.status(500).json({ error: "Failed to upload image: " + err.message });
     }
 };
 
 /**
- * Upload and update driver's license image
+ * Upload and update driver's license image/document
+ * - Uses storageService.uploadLicense() -> returns CDN URL
+ * - Saves URL to Profile.driversLicenseUrl
  */
 exports.uploadLicenseImage = async (req, res) => {
     try {
@@ -159,8 +177,7 @@ exports.uploadLicenseImage = async (req, res) => {
             return res.status(400).json({ error: "No file uploaded" });
         }
 
-        // TODO:: Replace hardcoded localhost with environment variable (e.g., process.env.BASE_URL)
-        const url = process.env.BASE_URL+`/uploads/licenses/${req.file.filename}`;
+        const url = await storageService.uploadLicense(req.file, req.user.id);
 
         const profile = await Profile.findOne({ where: { userid: req.user.id } });
         if (!profile) {
@@ -171,6 +188,7 @@ exports.uploadLicenseImage = async (req, res) => {
 
         return res.json({ url });
     } catch (err) {
-        return res.status(500).json({ error: "Failed to upload image " + err.message });
+        console.error('Upload license error:', err);
+        return res.status(500).json({ error: "Failed to upload license: " + err.message });
     }
 };

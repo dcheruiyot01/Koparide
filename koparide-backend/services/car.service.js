@@ -3,9 +3,11 @@
  * -------------------------
  * Handles business logic for car listings.
  * Uses Sequelize models and transactions.
+ * Now supports DigitalOcean Spaces for all file uploads.
  */
 
 const { sequelize, Car, CarImage } = require('../models');
+const storageService = require('./storage.service'); // 👈 new
 
 class NotFoundError extends Error {
     constructor(message) {
@@ -16,9 +18,7 @@ class NotFoundError extends Error {
 
 module.exports = {
     /**
-     * Create a new car listing
-     * - Defaults classification to 'Saloon'
-     * - Sets status to 'pending'
+     * Create a new car listing (basic info, no files)
      */
     async createCarListing(data) {
         const payload = {
@@ -30,7 +30,7 @@ module.exports = {
     },
 
     /**
-     * Update car listing
+     * Update car listing (text fields only)
      */
     async updateCarListing(id, data) {
         return Car.update(data, {
@@ -40,19 +40,16 @@ module.exports = {
     },
 
     /**
-     * Upload car images (one or many)
-     * - Accepts req.files from Multer
+     * Upload car images (one or many) – directly to Spaces
+     * - Accepts req.files from Multer (memory storage)
      * - Saves metadata into CarImage table
      * - Ensures only one primary image exists
-     * - Returns array of saved images
+     * - Returns array of saved image objects (with CDN URLs)
      */
     async uploadCarImages(carId, files = []) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
-
-        if (!files || files.length === 0) {
-            return [];
-        }
+        if (!files || files.length === 0) return [];
 
         return sequelize.transaction(async (t) => {
             // Check if car already has a primary image
@@ -64,50 +61,49 @@ module.exports = {
             let shouldSetPrimary = !existingPrimary;
             const savedImages = [];
 
-            for (const file of files) {
-                const imageUrl =  process.env.BASE_URL+`/uploads/cars/${file.filename}`;
+            // Upload all files to Spaces first to get CDN URLs
+            const imageUrls = await storageService.uploadCarImages(files, carId);
 
+            // Save each URL in CarImage table
+            for (let i = 0; i < imageUrls.length; i++) {
                 const saved = await CarImage.create(
                     {
                         carId,
-                        url: imageUrl,
+                        url: imageUrls[i],
                         altText: `${car.make} ${car.model}`,
                         isPrimary: shouldSetPrimary,
-                        position: savedImages.length
+                        position: i
                     },
                     { transaction: t }
                 );
-
                 savedImages.push(saved);
-
-                // Only the first uploaded image becomes primary (if none existed)
-                if (shouldSetPrimary) {
-                    shouldSetPrimary = false;
-                }
+                if (shouldSetPrimary) shouldSetPrimary = false;
             }
 
             return savedImages;
         });
     },
 
-    // services/CarService.js
-
     /**
-     * Upload insurance document URL to car record
+     * Upload insurance document – directly to Spaces
      */
-    async uploadInsurance(carId, insurance_url) {
+    async uploadInsurance(carId, insuranceFile) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
-        return car.update({ insurance_url }); // field name in Car model
+        const insuranceUrl = await storageService.uploadDocument(insuranceFile, carId, 'insurance');
+        await car.update({ insurance_url: insuranceUrl });
+        return car;
     },
 
     /**
-     * Upload registration document URL to car record
+     * Upload registration/logbook document – directly to Spaces
      */
-    async uploadRegistration(carId, logbook_url) {
+    async uploadRegistration(carId, logbookFile) {
         const car = await Car.findByPk(carId);
         if (!car) throw new NotFoundError('Car not found');
-        return car.update({ logbook_url }); // field name in Car model
+        const logbookUrl = await storageService.uploadDocument(logbookFile, carId, 'registration');
+        await car.update({ logbook_url: logbookUrl });
+        return car;
     },
 
     async approveCar(carId) {
@@ -127,7 +123,6 @@ module.exports = {
      */
     async getPublicCars({ page = 1, limit = 100, classification, location }) {
         const where = {};
-        // const where = { status: 'approved', is_deleted: false };
         if (classification) where.classification = classification;
         if (location) where.location = location;
 
@@ -175,15 +170,11 @@ module.exports = {
         const car = await Car.findByPk(id, {
             include: [
                 { model: require('../models/CarImage'), as: 'imagesList' },
-                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email','createdAt'] },
-                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email','createdAt'] }
+                { model: require('../models/User'), as: 'owner', attributes: ['id', 'name', 'email', 'createdAt'] },
+                { model: require('../models/User'), as: 'renter', attributes: ['id', 'name', 'email', 'createdAt'] }
             ]
         });
-
-        if (!car || car.is_deleted) {
-            return null;
-        }
-
+        if (!car || car.is_deleted) return null;
         return car;
     },
 
@@ -196,28 +187,29 @@ module.exports = {
         return car.update({ rented_to: null });
     },
 
-    //
+    /**
+     * Create a new car listing WITH all assets (images, logbook, insurance)
+     * All files are uploaded directly to Spaces inside a transaction.
+     */
     async createCarWithAssets(carData, imageFiles = [], logbookFile = null, insuranceFile = null) {
         const transaction = await sequelize.transaction();
         try {
-            // 1. Create the car
+            // 1. Create the car record
             const car = await Car.create({
                 ...carData,
                 status: 'pending'
             }, { transaction });
 
-            // 2. Upload images
+            // 2. Upload images to Spaces and save metadata
             let savedImages = [];
             if (imageFiles && imageFiles.length) {
-                for (let i = 0; i < imageFiles.length; i++) {
-                    const file = imageFiles[i];
-                    const imageUrl = `${process.env.BASE_URL}/uploads/cars/${file.filename}`;
-                    const isPrimary = i === 0; // first image becomes primary
+                const imageUrls = await storageService.uploadCarImages(imageFiles, car.id);
+                for (let i = 0; i < imageUrls.length; i++) {
                     const img = await CarImage.create({
                         carId: car.id,
-                        url: imageUrl,
+                        url: imageUrls[i],
                         altText: `${car.make} ${car.model}`,
-                        isPrimary,
+                        isPrimary: i === 0,
                         position: i
                     }, { transaction });
                     savedImages.push(img);
@@ -226,13 +218,13 @@ module.exports = {
 
             // 3. Upload logbook (if provided)
             if (logbookFile) {
-                const logbookUrl = `${process.env.BASE_URL}/uploads/cars/registration/${logbookFile.filename}`;
+                const logbookUrl = await storageService.uploadDocument(logbookFile, car.id, 'registration');
                 await car.update({ logbook_url: logbookUrl }, { transaction });
             }
 
             // 4. Upload insurance (if provided)
             if (insuranceFile) {
-                const insuranceUrl = `${process.env.BASE_URL}/uploads/cars/insurance/${insuranceFile.filename}`;
+                const insuranceUrl = await storageService.uploadDocument(insuranceFile, car.id, 'insurance');
                 await car.update({ insurance_url: insuranceUrl }, { transaction });
             }
 

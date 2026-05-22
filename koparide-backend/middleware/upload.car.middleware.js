@@ -3,53 +3,40 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Helper to ensure directory exists
+// Helper to ensure directory exists (only needed for dev)
 const ensureDir = (dir) => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
 };
 
-// Storage for car images
-const imageStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = "uploads/cars/";
-        ensureDir(dir);
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, unique + path.extname(file.originalname));
-    },
-});
+// Choose storage based on environment
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Storage for insurance documents
-const insuranceStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = "uploads/cars/insurance/";
-        ensureDir(dir);
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+// For production: use memoryStorage (files go to Spaces)
+// For development: keep diskStorage (local files for testing)
+const getStorage = (subfolder = 'cars/images') => {
+    if (isProduction) {
+        return multer.memoryStorage();
     }
-});
+    // Development: disk storage
+    return multer.diskStorage({
+        destination: (req, file, cb) => {
+            let dir = `uploads/${subfolder}/`;
+            if (file.fieldname === 'logbook') dir = "uploads/cars/registration/";
+            else if (file.fieldname === 'insurance') dir = "uploads/cars/insurance/";
+            ensureDir(dir);
+            cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+            const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const ext = path.extname(file.originalname);
+            cb(null, file.fieldname + '-' + unique + ext);
+        }
+    });
+};
 
-// Storage for registration / logbook documents
-const registrationStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = "uploads/cars/registration/";
-        ensureDir(dir);
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-// File filter (optional, restrict types)
+// File filter (same for both environments)
 const fileFilter = (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
     if (allowed.includes(file.mimetype)) {
@@ -59,48 +46,32 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Individual multer instances (kept for backward compatibility)
+// Multer limits (same)
+const limits = { fileSize: 5 * 1024 * 1024 };
+
+// Individual upload instances (for backward compatibility)
 const uploadImages = multer({
-    storage: imageStorage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    storage: getStorage('cars'),
+    limits,
     fileFilter
 });
 
 const uploadInsurance = multer({
-    storage: insuranceStorage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    storage: getStorage('cars/insurance'),
+    limits,
     fileFilter
 });
 
 const uploadRegistration = multer({
-    storage: registrationStorage,
-    limits: { fileSize: 5 * 1024 * 1024 },
+    storage: getStorage('cars/registration'),
+    limits,
     fileFilter
 });
 
-// NEW: Combined middleware that accepts images (array), logbook (single), insurance (single)
+// Combined middleware for car assets (used by your controller)
 const uploadCarAssets = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            // Route to the correct sub‑folder based on fieldname
-            if (file.fieldname === 'logbook') {
-                ensureDir("uploads/cars/registration/");
-                cb(null, "uploads/cars/registration/");
-            } else if (file.fieldname === 'insurance') {
-                ensureDir("uploads/cars/insurance/");
-                cb(null, "uploads/cars/insurance/");
-            } else {
-                ensureDir("uploads/cars/");
-                cb(null, "uploads/cars/");
-            }
-        },
-        filename: (req, file, cb) => {
-            const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            const ext = path.extname(file.originalname);
-            cb(null, file.fieldname + '-' + unique + ext);
-        }
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 },
+    storage: getStorage(), // passes 'cars' as default
+    limits,
     fileFilter
 }).fields([
     { name: 'images', maxCount: 10 },
@@ -108,10 +79,9 @@ const uploadCarAssets = multer({
     { name: 'insurance', maxCount: 1 }
 ]);
 
-// Export all (old + new)
 module.exports = {
-    uploadImages,          // for backward compatibility (array of 'images')
-    uploadInsurance,       // single 'insurance'
-    uploadRegistration,    // single 'logbook'
-    uploadCarAssets        // NEW: combined fields
+    uploadImages,
+    uploadInsurance,
+    uploadRegistration,
+    uploadCarAssets
 };

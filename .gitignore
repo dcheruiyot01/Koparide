@@ -5,6 +5,7 @@ yarn-error.log
 docker-compose.dev.yml
 koparide-backend/dockerfile.dev
 koparide-frontend/dockerfile.dev
+docker-compose.prod.example.yml
 # Env
 koparide-backend/.env
 .env.local
@@ -13,7 +14,7 @@ koparide-backend/.env
 # Logs
 logs/
 *.log
-
+package.json
 # Coverage
 coverage/
 
